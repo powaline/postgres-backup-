@@ -327,3 +327,391 @@ custom_scripts() {
         done
     fi
 }
+
+## Function: Checks if a database service is ready
+## Usage:
+## - db_ready <dbtype>
+## - Example: db_ready mysql
+## Notes:
+## - Supports multiple database types: CouchDB, InfluxDB, MongoDB, MySQL, PostgreSQL, RabbitMQ, Redis, and RethinkDB.
+## - Uses environment variables (e.g., `DB_HOST`, `DB_PORT`) to determine connection details.
+## - Retries the connection until the service becomes available.
+db_ready() {
+    # Disable output during the database readiness check
+    output_off
+
+    # Print debug message indicating the start of the check
+    print_debug "Checking to see if Database Type $1 is ready"
+
+    case "$1" in
+        "couch" | "couchdb" )
+            # Transform and prioritize port variables
+            transform_file_var DB_PORT
+            if [ -n "${DB_PORT}" ]; then
+                couch_port=${DB_PORT}
+            fi
+            transform_file_var COUCHDB_PORT
+            if [ -n "${COUCHDB_PORT}" ]; then
+                couch_port=${COUCHDB_PORT}
+            fi
+            couch_port=${couch_port:-5984}
+
+            # Transform and prioritize host variables
+            transform_file_var DB_HOST
+            if [ -n "${DB_HOST}" ]; then
+                couch_host=${DB_HOST}
+            fi
+            transform_file_var COUCHDB_HOST
+            if [ -n "${COUCHDB_HOST}" ]; then
+                couch_host=${COUCHDB_HOST}
+            fi
+            couch_host=${couch_host:-"localhost"}
+
+            # Initialize retry counter
+            counter=0
+
+            # Retry until CouchDB becomes accessible
+            while ! (nc -z "${couch_host}" "${couch_port}"); do
+                sleep 5
+                (( counter+=5 ))
+                print_warn "CouchDB Host '${couch_host}' is not accessible, retrying.. ($counter seconds so far)"
+            done
+        ;;
+        "influx" | "influxdb" )
+            # Transform and prioritize port variables
+            transform_file_var DB_PORT
+            if [ -n "${DB_PORT}" ]; then
+                influx_port=${DB_PORT}
+            fi
+            transform_file_var INFLUXDB_PORT
+            if [ -n "${INFLUXDB_PORT}" ]; then
+                influx_port=${INFLUXDB_PORT}
+            fi
+            influx_port=${influx_port:-8088}
+
+            # Transform and prioritize host variables
+            transform_file_var DB_HOST
+            if [ -n "${DB_HOST}" ]; then
+                influx_host=${DB_HOST}
+            fi
+            transform_file_var INFLUXDB_HOST
+            if [ -n "${INFLUXDB_HOST}" ]; then
+                influx_host=${INFLUXDB_HOST}
+            fi
+            influx_host=${influx_host:-"localhost"}
+
+            # Initialize retry counter
+            counter=0
+
+            # Retry until InfluxDB becomes accessible
+            while ! (nc -z "${influx_host}" "${influx_port}"); do
+                sleep 5
+                (( counter+=5 ))
+                print_warn "InfluxDB Host '${influx_host}' is not accessible, retrying.. ($counter seconds so far)"
+            done
+        ;;
+        "mongo" | "mongodb" )
+            # Transform and prioritize port variables
+            transform_file_var DB_PORT
+            if [ -n "${DB_PORT}" ]; then
+                mongo_port=${DB_PORT}
+            fi
+            transform_file_var MONGO_PORT
+            if [ -n "${MONGO_PORT}" ]; then
+                mongo_port=${MONGO_PORT}
+            fi
+            mongo_port=${mongo_port:-27017}
+
+            # Transform and prioritize host variables
+            transform_file_var DB_HOST
+            if [ -n "${DB_HOST}" ]; then
+                mongo_host=${DB_HOST}
+            fi
+            transform_file_var MONGO_HOST
+            if [ -n "${MONGO_HOST}" ]; then
+                mongo_host=${MONGO_HOST}
+            fi
+            mongo_host=${mongo_host:-"localhost"}
+
+            # Initialize retry counter
+            counter=0
+
+            # Retry until MongoDB becomes accessible
+            while ! (nc -z "${mongo_host}" "${mongo_port}"); do
+                sleep 5
+                (( counter+=5 ))
+                print_warn "MongoDB Host '${mongo_host}' is not accessible, retrying.. ($counter seconds so far)"
+            done
+        ;;
+        "mysql" | "mariadb" | "MARIADB" | "MYSQL" )
+            # Determine the appropriate client binary
+            if command -v "mysqladmin" &> /dev/null; then
+                mysqladmin_bin="$(which mysqladmin)"
+            elif command -v "mariadb-admin" &> /dev/null; then
+                mysqladmin_bin="$(which mariadb-admin)"
+            else
+                print_error "No MySQL or MariaDB client detected - Cannot check for Database"
+                exit 1
+            fi
+
+            # Resolve port configurations
+            transform_file_var DB_PORT
+            if [ -n "${DB_PORT}" ]; then
+                maria_port=${DB_PORT}
+            fi
+            transform_file_var MYSQL_PORT
+            if [ -n "${MYSQL_PORT}" ]; then
+                maria_port=${MYSQL_PORT}
+            fi
+            transform_file_var MARIA_PORT
+            if [ -n "${MARIA_PORT}" ]; then
+                maria_port=${MARIA_PORT}
+            fi
+            maria_port=${maria_port:-3306}
+
+            # Resolve host configurations
+            transform_file_var DB_HOST
+            if [ -n "${DB_HOST}" ]; then
+                maria_host=${DB_HOST}
+            fi
+            transform_file_var MYSQL_HOST
+            if [ -n "${MYSQL_HOST}" ]; then
+                maria_host=${MYSQL_HOST}
+            fi
+            transform_file_var MARIA_HOST
+            if [ -n "${MARIA_HOST}" ]; then
+                maria_host=${MARIA_HOST}
+            fi
+            maria_host=${maria_host:-"localhost"}
+
+            # Resolve user configurations
+            transform_file_var DB_USER
+            if [ -n "${DB_USER}" ]; then
+                maria_user=${DB_USER}
+            fi
+            transform_file_var MYSQL_USER
+            if [ -n "${MYSQL_USER}" ]; then
+                maria_user=${MYSQL_USER}
+            fi
+            transform_file_var MARIA_USER
+            if [ -n "${MARIA_USER}" ]; then
+                maria_user=${MARIA_USER}
+            fi
+
+            # Resolve password configurations
+            transform_file_var DB_PASS
+            if [ -n "${DB_PASS}" ]; then
+                maria_pass=${DB_PASS}
+            fi
+            transform_file_var MYSQL_PASS
+            if [ -n "${MYSQL_PASS}" ]; then
+                maria_pass=${MYSQL_PASS}
+            fi
+            transform_file_var MARIA_PASS
+            if [ -n "${MARIA_PASS}" ]; then
+                maria_pass=${MARIA_PASS}
+            fi
+
+            # Resolve database name configurations
+            transform_file_var DB_NAME
+            if [ -n "${DB_NAME}" ]; then
+                maria_name=${DB_NAME}
+            fi
+            transform_file_var MYSQL_NAME
+            if [ -n "${MYSQL_NAME}" ]; then
+                maria_name=${MYSQL_NAME}
+            fi
+            transform_file_var MARIA_NAME
+            if [ -n "${MARIA_NAME}" ]; then
+                maria_name=${MARIA_NAME}
+            fi
+
+            # Initialize retry counter
+            counter=0
+
+            # Retry until MySQL/MariaDB server becomes accessible
+            while ! ("${mysqladmin_bin}" -u"${maria_user}" -P"${maria_port}" -h"${maria_host}" -p"${maria_pass}" status > /dev/null 2>&1); do
+                sleep 5
+                (( counter+=5 ))
+                print_warn "MySQL/MariaDB Server '${maria_host}' is not accessible, retrying.. (${counter} seconds so far)"
+            done
+        ;;
+        "pgsql" | "psql" | "postgres" | "postgresql" )
+            # Check if the PostgreSQL client `pg_isready` is available
+            if command -v "pg_isready" &> /dev/null; then
+                pg_isready_bin="$(which pg_isready)"
+            else
+                print_error "No PostgreSQL client detected - Cannot check for Database"
+                exit 1
+            fi
+
+            # Resolve port configurations
+            transform_file_var DB_PORT
+            if [ -n "${DB_PORT}" ]; then
+                postgres_port=${DB_PORT}
+            fi
+            transform_file_var POSTGRES_PORT
+            if [ -n "${POSTGRES_PORT}" ]; then
+                postgres_port=${POSTGRES_PORT}
+            fi
+            postgres_port=${postgres_port:-5432}
+
+            # Resolve host configurations
+            transform_file_var DB_HOST
+            if [ -n "${DB_HOST}" ]; then
+                postgres_host=${DB_HOST}
+            fi
+            transform_file_var POSTGRES_HOST
+            if [ -n "${POSTGRES_HOST}" ]; then
+                postgres_host=${POSTGRES_HOST}
+            fi
+            postgres_host=${postgres_host:-"localhost"}
+
+            # Resolve user configurations
+            transform_file_var DB_USER
+            if [ -n "${DB_USER}" ]; then
+                postgres_user=${DB_USER}
+            fi
+            transform_file_var POSTGRES_USER
+            if [ -n "${POSTGRES_USER}" ]; then
+                postgres_user=${POSTGRES_USER}
+            fi
+
+            # Resolve password configurations
+            transform_file_var DB_PASS
+            if [ -n "${DB_PASS}" ]; then
+                postgres_pass=${DB_PASS}
+            fi
+            transform_file_var PGPASSWORD
+            if [ -n "${PGPASSWORD}" ]; then
+                postgres_pass=${PGPASSWORD}
+            fi
+
+            # Resolve database name configurations
+            transform_file_var DB_NAME
+            if [ -n "${DB_NAME}" ]; then
+                postgres_name=${DB_NAME}
+            fi
+            transform_file_var POSTGRES_NAME
+            if [ -n "${POSTGRES_NAME}" ]; then
+                postgres_name=${POSTGRES_NAME}
+            fi
+
+            # Initialize retry counter
+            counter=0
+
+            # Export password for PostgreSQL authentication
+            export PGPASSWORD=${postgres_pass}
+
+            # Retry until PostgreSQL server becomes accessible
+            until "${pg_isready_bin}" --dbname="${postgres_name}" --host="${postgres_host}" --port="${postgres_port}" --username="${postgres_user}" -q; do
+                sleep 5
+                (( counter+=5 ))
+                print_warn "PostgreSQL Host '${postgres_host}' is not accessible, retrying.. (${counter} seconds so far)"
+            done
+        ;;
+        "rabbit" | "rabbitmq" )
+            # Resolve port configurations
+            transform_file_var DB_PORT
+            if [ -n "${DB_PORT}" ]; then
+                rabbit_port=${DB_PORT}
+            fi
+            transform_file_var RABBIT_PORT
+            if [ -n "${RABBIT_PORT}" ]; then
+                rabbit_port=${RABBIT_PORT}
+            fi
+            rabbit_port=${rabbit_port:-5672}
+
+            # Resolve host configurations
+            transform_file_var DB_HOST
+            if [ -n "${DB_HOST}" ]; then
+                rabbit_host=${DB_HOST}
+            fi
+            transform_file_var RABBIT_HOST
+            if [ -n "${RABBIT_HOST}" ]; then
+                rabbit_host=${RABBIT_HOST}
+            fi
+            rabbit_host=${rabbit_host:-"localhost"}
+
+            # Initialize retry counter
+            counter=0
+
+            # Retry until RabbitMQ server becomes accessible
+            while ! (nc -z "${rabbit_host}" "${rabbit_port}"); do
+                sleep 5
+                (( counter+=5 ))
+                print_warn "RabbitMQ Host '${rabbit_host}' is not accessible, retrying.. (${counter} seconds so far)"
+            done
+        ;;
+        "redis" )
+            # Resolve port configurations
+            transform_file_var DB_PORT
+            if [ -n "${DB_PORT}" ]; then
+                redis_port=${DB_PORT}
+            fi
+            if [ -n "${REDIS_PORT}" ]; then
+                redis_port=${REDIS_PORT}
+            fi
+            redis_port=${redis_port:-6379}
+
+            # Resolve host configurations
+            transform_file_var DB_HOST
+            if [ -n "${DB_HOST}" ]; then
+                redis_host=${DB_HOST}
+            fi
+            if [ -n "${REDIS_HOST}" ]; then
+                redis_host=${REDIS_HOST}
+            fi
+            redis_host=${redis_host:-"localhost"}
+
+            # Initialize retry counter
+            counter=0
+
+            # Retry until Redis server becomes accessible
+            while ! (nc -z "${redis_host}" "${redis_port}"); do
+                sleep 5
+                (( counter+=5 ))
+                print_warn "Redis Host '${redis_host}' is not accessible, retrying.. (${counter} seconds so far)"
+            done
+        ;;
+        "rethink" )
+            # Resolve port configurations
+            transform_file_var DB_PORT
+            if [ -n "${DB_PORT}" ]; then
+                rethink_port=${DB_PORT}
+            fi
+            if [ -n "${RETHINK_PORT}" ]; then
+                rethink_port=${RETHINK_PORT}
+            fi
+            rethink_port=${rethink_port:-28015}
+
+            # Resolve host configurations
+            transform_file_var DB_HOST
+            if [ -n "${DB_HOST}" ]; then
+                rethink_host=${DB_HOST}
+            fi
+            if [ -n "${RETHINK_HOST}" ]; then
+                rethink_host=${RETHINK_HOST}
+            fi
+            rethink_host=${rethink_host:-"localhost"}
+
+            # Initialize retry counter
+            counter=0
+
+            # Retry until RethinkDB server becomes accessible
+            while ! (nc -z "${rethink_host}" "${rethink_port}"); do
+                sleep 5
+                (( counter+=5 ))
+                print_warn "RethinkDB Host '${rethink_host}' is not accessible, retrying.. (${counter} seconds so far)"
+            done
+        ;;
+        *)
+            # Unsupported database type
+            print_error "Unsupported database type: $1"
+            exit 1
+        ;;
+    esac
+
+    # Re-enable output after the check
+    output_on
+}
