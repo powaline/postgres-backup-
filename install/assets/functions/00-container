@@ -11,22 +11,27 @@ bdgy="\e[100m"     # Background color: Dark Gray
 blr="\e[101m"      # Background color: Light Red
 boff="\e[49m"      # Reset background color to default
 
-# Check if container initialization scripts have completed
+## Function: Checks if the container initialization scripts have completed
+## Usage:
+## - check_container_initialized
+## Notes:
+## - This function continuously checks for the presence of the initialization flag file.
+## - Ensures that the container is properly initialized before proceeding with further operations.
 check_container_initialized() {
-    # Print a debug message to indicate initialization check
+    # Print a debug message to indicate the initialization check process
     print_debug "Checking if container initialization scripts have completed"
 
-    # Disable output during the waiting process
+    # Disable console output during the waiting process to reduce clutter
     output_off
 
     # Wait until the initialization flag file is present
     while [ ! -f /tmp/.container/99-container-init ]; do
-        # Continuously print debug messages for visibility
+        # Print debug messages to indicate progress
         print_debug "Container initialization in progress..."
-        sleep 1  # Wait for 1 second before checking again
+        sleep 1  # Pause for 1 second before rechecking
     done
 
-    # Re-enable output after initialization is complete
+    # Re-enable console output after the initialization process completes
     output_on
 }
 
