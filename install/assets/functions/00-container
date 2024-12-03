@@ -165,3 +165,52 @@ clone_git_repo() {
     # Re-enable debug output
     set -x
 }
+
+## Function: Creates a logrotate configuration file
+## Usage:
+## - create_logrotate <config_name> <path> [parser] [user] [group]
+## - Example: create_logrotate cron /var/log/cron/cron.log cron root root
+## Notes:
+## - If no parser is provided, use 'none' as the third argument.
+## - If wildcard characters (e.g., `/logs/*.log`) are passed, run `set -f` before the function and `set +f` after.
+create_logrotate() {
+    # Ensure required arguments are provided
+    if [ -n "$1" ] && [ -n "$2" ]; then
+        # Check if the logrotate configuration already exists
+        if [ ! -f /assets/logrotate/"$1" ]; then
+            print_debug "Creating Logrotate Entry for $2"  # Debug message for logrotate creation
+
+            # Optional: Add logship parser configuration
+            if [ -n "$3" ]; then
+                if [ "${3,,}" != "none" ]; then
+                    lrlsparser="# logship: $3"
+                fi
+            fi
+
+            # Optional: Add user and group configuration for logrotate
+            if [ -n "$4" ] && [ -n "$5" ]; then
+                lruser="    su $4 $5"
+            fi
+
+            # Ensure the logrotate directory exists
+            if [ ! -d "/assets/logrotate" ]; then
+                mkdir -p /assets/logrotate
+            fi
+
+            # Create the logrotate configuration file
+            cat <<EOF > /assets/logrotate/"${1}"
+${lrlsparser}
+$2 {
+    missingok
+${lruser}
+}
+EOF
+
+            # Set appropriate permissions for the configuration file
+            chown root:root /assets/logrotate/"${1}"
+            chmod 0644 /assets/logrotate/"${1}"
+        else
+            print_debug "Skipping creating automatic logrotation for ${1}"  # Debug message if config exists
+        fi
+    fi
+}
