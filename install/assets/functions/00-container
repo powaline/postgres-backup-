@@ -253,3 +253,47 @@ EOF
         fi
     fi
 }
+
+## Function: Copies custom files from a source to a destination
+## Usage:
+## - custom_files <destination> [source] [user] [group]
+## Notes:
+## - If the source directory is omitted, it defaults to `CONTAINER_CUSTOM_PATH`.
+## - Ensures the destination directory exists before copying files.
+## - Optionally, changes ownership of the copied files to the specified user and group.
+custom_files() {
+    # Determine source and destination directories
+    if [ -n "${2}" ]; then
+        ccustom_files_source="${1}"
+        ccustom_files_destination="${2}"
+    else
+        ccustom_files_source="${CONTAINER_CUSTOM_PATH}"
+        ccustom_files_destination="${1}"
+    fi
+
+    # Check if the source directory exists and is not empty
+    if [ -d "${ccustom_files_source}" ] && dir_notempty "${ccustom_files_source}"; then
+        # Print a debug message about the copy operation
+        print_debug "Custom Files: Copying files from '${ccustom_files_source}' to '${ccustom_files_destination}'"
+
+        # Ensure the destination directory exists
+        if [ ! -d "${ccustom_files_destination}" ]; then
+            mkdir -p "${ccustom_files_destination}"
+        fi
+
+        # Copy files from source to destination
+        cp -aR "${ccustom_files_source}"/* "${ccustom_files_destination}"/
+    fi
+
+    # Handle optional user and group ownership
+    if [ -n "${3}" ]; then
+        permbuilder="${3}"
+    fi
+    if [ -n "${4}" ]; then
+        permbuilder="${3}:${4}"
+    fi
+    if [ -n "${permbuilder}" ]; then
+        # Change ownership of the destination directory
+        chown -R "${permbuilder}" "${ccustom_files_destination}"
+    fi
+}
