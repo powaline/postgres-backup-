@@ -214,3 +214,37 @@ EOF
         fi
     fi
 }
+
+## Function: Creates a Zabbix auto-register configuration
+## Usage:
+## - create_zabbix <config_name> [autoregister_name]
+## - Example: create_zabbix cron
+## Notes:
+## - If no autoregister name is provided, it defaults to the configuration name.
+## - This function only operates if monitoring is enabled and the backend is Zabbix.
+create_zabbix() {
+    # Validate the required configuration name argument
+    if [ -n "$1" ]; then
+        # Set autoregister name to the second argument if provided; otherwise, use the config name
+        if [ -n "$2" ]; then
+            autoregister=$2
+        else
+            autoregister=$1
+        fi
+
+        # Debug message for adding Zabbix configuration
+        print_debug "Adding Zabbix Auto Register configuration for '$1'"
+
+        # Ensure monitoring is enabled and the backend is Zabbix before proceeding
+        if var_true "${CONTAINER_ENABLE_MONITORING}" && [ "${CONTAINER_MONITORING_BACKEND,,}" = "zabbix" ]; then
+            # Load Zabbix configuration defaults
+            source /assets/defaults/03-monitoring
+
+            # Create the Zabbix configuration file
+            cat <<EOF > "${ZABBIX_CONFIG_PATH}/${ZABBIX_CONFIG_FILE}.d/focela_$1.conf"
+# Zabbix $1 Configuration - Automatically Generated
+# Autoregister=$autoregister
+EOF
+        fi
+    fi
+}
