@@ -29,3 +29,64 @@ check_container_initialized() {
     # Re-enable output after initialization is complete
     output_on
 }
+
+## Function: Checks if a service has been initialized
+## Usage:
+## - check_service_initialized init: Checks for the matching filename of /etc/services.available/<folder-name> in /tmp/.container/<folder-name>-init.
+## - check_service_initialized <service folder>: Checks for the matching filename of /etc/services.available/<folder-name> in /tmp/.container/<folder-name>.
+## Notes:
+## - Related to the liftoff function, which writes /tmp/.container/script|foldername.
+## - Scripts in /etc/cont-init.d add `-init` to their filename.
+## - Scripts in /etc/services.available/* use the folder name directly without any suffix.
+check_service_initialized() {
+    # Print a debug message to indicate initialization check
+    print_debug "Checking to see if service has initialized"
+
+    # Disable output during the waiting process
+    output_off
+
+    # Determine service initialization behavior based on input arguments
+    if [ "$1" = "init" ]; then
+        # For scripts running in /etc/cont-init.d, append `-init` to the service name
+        service_suffix="-init"
+        csi_bypass=FALSE
+    else
+        # For services in /etc/services.available, use folder name directly
+        service="$1"
+        csi_bypass=TRUE
+    fi
+
+    # Resolve the service name if bypass is disabled
+    if [ "$csi_bypass" = "FALSE" ]; then
+        if [ -z "$2" ]; then
+            # Determine service name based on the script's execution context
+            case "$(dirname "$0")" in
+                "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d" )
+                    # Use the script name as the service name
+                    service=$(basename "$0")
+                ;;
+                *)
+                    # Use the current working directory as the service name
+                    service=$(basename "$PWD")
+                ;;
+            esac
+        else
+            # Use the second argument as the service name
+            service=$2
+        fi
+    fi
+
+    # Wait until the service initialization flag file is present
+    while [ ! -f /tmp/.container/"${service}${service_suffix}" ]; do
+        # Wait for 1 second before checking again
+        sleep 1
+        # Print debug message to indicate the file being checked
+        print_debug "Looking for existence of /tmp/.container/${service}${service_suffix}"
+    done
+
+    # Cleanup temporary variable
+    unset csi_bypass
+
+    # Re-enable output after initialization is complete
+    output_on
+}
