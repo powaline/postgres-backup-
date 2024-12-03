@@ -10,3 +10,22 @@ bdm="\e[45m"       # Background color: Dark Magenta
 bdgy="\e[100m"     # Background color: Dark Gray
 blr="\e[101m"      # Background color: Light Red
 boff="\e[49m"      # Reset background color to default
+
+# Check if container initialization scripts have completed
+check_container_initialized() {
+    # Print a debug message to indicate initialization check
+    print_debug "Checking if container initialization scripts have completed"
+
+    # Disable output during the waiting process
+    output_off
+
+    # Wait until the initialization flag file is present
+    while [ ! -f /tmp/.container/99-container-init ]; do
+        # Continuously print debug messages for visibility
+        print_debug "Container initialization in progress..."
+        sleep 1  # Wait for 1 second before checking again
+    done
+
+    # Re-enable output after initialization is complete
+    output_on
+}
