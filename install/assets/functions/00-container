@@ -297,3 +297,33 @@ custom_files() {
         chown -R "${permbuilder}" "${ccustom_files_destination}"
     fi
 }
+
+## Function: Executes custom scripts from a specified directory
+## Usage:
+## - custom_scripts [source_directory]
+## - Example: custom_scripts /path/to/scripts
+## Notes:
+## - If no source directory is specified, the default is `CONTAINER_CUSTOM_SCRIPTS_PATH`.
+## - Only executable files with the `.sh` extension are executed.
+## - Skips directories and non-executable files.
+custom_scripts() {
+    # Determine the source directory for custom scripts
+    if [ -n "${1}" ]; then
+        ccustom_scripts_source="${1}"
+    else
+        ccustom_scripts_source="${CONTAINER_CUSTOM_SCRIPTS_PATH}"
+    fi
+
+    # Check if the source directory exists and is not empty
+    if [ -d "${ccustom_scripts_source}" ] && dir_notempty "${ccustom_scripts_source}"; then
+        # Iterate over each shell script in the directory
+        for ccustom_script in "${ccustom_scripts_source}"/*.sh; do
+            # Ensure the file is executable and not a directory
+            if [ -x "$ccustom_script" ] && [ ! -d "$ccustom_script" ]; then
+                # Print debug message and execute the script
+                print_debug "Executing custom script: '${ccustom_script}'"
+                "${ccustom_script}"
+            fi
+        done
+    fi
+}
