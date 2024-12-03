@@ -1,0 +1,12 @@
+#!/command/with-contenv bash
+
+# Load default container configuration
+source /assets/defaults/00-container
+
+# Background Colors Configuration
+bdg="\e[42m"       # Background color: Dark Green
+bdb="\e[44m"       # Background color: Dark Blue
+bdm="\e[45m"       # Background color: Dark Magenta
+bdgy="\e[100m"     # Background color: Dark Gray
+blr="\e[101m"      # Background color: Light Red
+boff="\e[49m"      # Reset background color to default
