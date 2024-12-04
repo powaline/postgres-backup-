@@ -1153,3 +1153,23 @@ install_template() {
     chown "$1" "$3"
     chmod "${template_mode}" "$3"
 }
+
+## Function: Generates a log prefix based on configured formats
+## Usage:
+## - log_prefix
+## Notes:
+## - Adds a prefix to log messages if log prefixing is enabled.
+## - Combines date, time, and separator formats as defined in configuration.
+log_prefix() {
+    # Disable console output during execution
+    output_off
+
+    # Check if log prefixing is enabled
+    if [ "${CONTAINER_ENABLE_LOG_PREFIX,,}" = "true" ]; then
+        # Generate log prefix using configured date and time formats
+        echo "$(date +"${CONTAINER_LOG_PREFIX_DATE_FMT}")${CONTAINER_LOG_PREFIX_SEPERATOR}$(date +"${CONTAINER_PROCESS_HELPER_TIME_FMT}") "
+    fi
+
+    # Re-enable console output after execution
+    output_on
+}
