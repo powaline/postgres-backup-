@@ -888,3 +888,72 @@ get_defaults() {
         done
     fi
 }
+
+## Function: Loads custom functions based on the specified scope
+## Usage:
+## - get_functions [scope]
+##   - "all": Loads all function files except `00-container`.
+##   - "app" or "single": Loads the function file for the current script or directory.
+##   - <comma-separated list>: Loads specific function files by name.
+## - If no scope is provided, defaults to loading all function files.
+## Notes:
+## - Provides debug output for tracing loaded functions.
+get_functions() {
+    # Check if a specific scope is provided
+    if [ -n "$1" ]; then
+        case "${1,,}" in
+            "all" )
+                # Load all function files except `00-container`
+                for f in /assets/functions/*; do
+                    if [ "$f" != "/assets/functions/00-container" ]; then
+                        print_debug "Container: Loading functions for '${f}'"
+                        source "$f"
+                    fi
+                done
+            ;;
+            "app" | "single" )
+                # Load the function file for the current script or directory
+                case "$(dirname "$0")" in
+                    "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d" )
+                        # Current script context
+                        if [ -f "/assets/functions/$(basename "$0")" ]; then
+                            print_debug "Container: Loading functions for '$(basename "$0")'"
+                            source /assets/functions/"$(basename "$0")"
+                        else
+                            print_debug "Container: No functions available for '$(basename "$0")'"
+                        fi
+                    ;;
+                    *)
+                        # Current working directory context
+                        if [ -f "/assets/functions/$(basename "$PWD")" ]; then
+                            print_debug "Container: Loading functions for '$(basename "$PWD")'"
+                            source /assets/functions/"$(basename "$PWD")"
+                        else
+                            print_debug "Container: No functions available for '$(basename "$PWD")'"
+                        fi
+                    ;;
+                esac
+            ;;
+            * )
+                # Load specific function files by name
+                functions=$(echo "$1" | tr "," "\n")
+                for f in $functions; do
+                    if [ -f "/assets/functions/${f}" ]; then
+                        print_debug "Container: Loading functions for '${f}'"
+                        source /assets/functions/"${f}"
+                    else
+                        print_debug "Container: No functions available for '${f}'"
+                    fi
+                done
+            ;;
+        esac
+    else
+        # Load all function files if no scope is provided
+        for f in /assets/functions/*; do
+            if [ "$f" != "/assets/functions/00-container" ]; then
+                print_debug "Container: Loading functions for '${f}'"
+                source "${f}"
+            fi
+        done
+    fi
+}
