@@ -1212,3 +1212,17 @@ liftoff() {
     # Re-enable console output after initialization
     output_on
 }
+
+## Function: Disables verbose output to reduce noise in log files
+## Usage:
+## - output_off
+## Notes:
+## - Primarily used to suppress unnecessary logs, especially echo statements.
+## - Respects the `DEBUG_MODE` environment variable for conditional behavior.
+output_off() {
+    # Check if debug mode is enabled
+    if [ "${DEBUG_MODE,,}" = "true" ]; then
+        # Disable verbose output to suppress logs
+        set +x
+    fi
+}
