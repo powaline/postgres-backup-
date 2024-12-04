@@ -957,3 +957,51 @@ get_functions() {
         done
     fi
 }
+
+## Function: Retrieves the image version from changelog files
+## Usage:
+## - get_image_version
+## Notes:
+## - Reads the image version from various `.md` changelog files.
+## - Supports multiple file naming conventions for changelogs.
+## - Outputs the image version if found, or remains silent otherwise.
+get_image_version() {
+    # Disable output during version retrieval to reduce noise
+    output_off
+
+    # Check if IMAGE_NAME is defined
+    if [ -n "${IMAGE_NAME}" ]; then
+        # Attempt to read the version from a changelog file matching IMAGE_NAME
+        if [ -f "/assets/.changelogs/${IMAGE_NAME//\//_}.md" ]; then
+            # Extract the version from the first line of the changelog
+            image_version=$(head -n1 /assets/.changelogs/${IMAGE_NAME//\//_}.md | awk '{print $2}')
+        elif [ -f /assets/.changelogs/docker-${IMAGE_NAME//\//_}.md ]; then
+            # Check for a docker-specific changelog file
+            image_version=$(head -n1 /assets/.changelogs/docker-${IMAGE_NAME//\//_}.md | awk '{print $2}')
+        else
+            # Check for a `focela_docker` naming convention in changelog files
+            if [ -f /assets/.changelogs/focela_docker-${IMAGE_NAME//\//_}.md ]; then
+                image_version=$(head -n1 /assets/.changelogs/docker-${IMAGE_NAME//\//_}.md | awk '{print $2}')
+            else
+                # Try stripping the repository URL and check for a matching changelog file
+                strip_image_repo_url=$(echo ${IMAGE_REPO_URL%/} | sed "s#https://github.com/##g")
+                if [ -f /assets/.changelogs/${strip_image_repo_url//\//_}.md ]; then
+                    image_version=$(head -n1 /assets/.changelogs/${strip_image_repo_url//\//_}.md | awk '{print $2}')
+                fi
+            fi
+
+            # Additional check for `focela_docker` convention as fallback
+            if [ -f /assets/.changelogs/focela_docker-${IMAGE_NAME//\//_}.md ]; then
+                image_version=$(head -n1 /assets/.changelogs/focela_docker-${IMAGE_NAME//\//_}.md | awk '{print $2}')
+            fi
+        fi
+
+        # Output the image version if it was successfully extracted
+        if [ -n "${image_version}" ]; then
+            echo "${image_version}"
+        fi
+    fi
+
+    # Re-enable output after the version retrieval process
+    output_on
+}
