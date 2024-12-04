@@ -1173,3 +1173,42 @@ log_prefix() {
     # Re-enable console output after execution
     output_on
 }
+
+## Function: Handles the initialization state of scripts
+## Usage:
+## - liftoff
+## Notes:
+## - Writes the script or working directory initialization state to `/tmp/.container`.
+## - Includes timestamps for initialization or reinitialization events.
+## - Supports a `DONOTSTART` prefix for scripts that should not start.
+liftoff() {
+    # Disable console output during initialization
+    output_off
+
+    # Ensure the container state directory exists
+    mkdir -p /tmp/.container
+
+    # Add a prefix for scripts marked with DONOTSTART
+    if [ "$DONOTSTART" = "TRUE" ]; then
+        liftoff_prefix="DONOTSTART "
+    fi
+
+    # Handle initialization based on script execution context
+    case "$(dirname "$0")" in
+        "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d" )
+            # For scripts in the initialization directories, log as initialized
+            echo "${liftoff_prefix}$(basename "$0")-init initialized on $(log_prefix)" >> /tmp/.container/"$(basename "$0")"-init
+        ;;
+        *)
+            # For other contexts, check if reinitialization is required
+            if [ ! -f /tmp/.container/"$(basename "$PWD")" ]; then
+                echo "$(basename "$PWD") initialized on $(log_prefix)" >> /tmp/.container/"$(basename "$PWD")"
+            else
+                echo "$(basename "$PWD") reinitialized on $(log_prefix)" >> /tmp/.container/"$(basename "$PWD")"
+            fi
+        ;;
+    esac
+
+    # Re-enable console output after initialization
+    output_on
+}
