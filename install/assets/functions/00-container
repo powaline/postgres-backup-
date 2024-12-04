@@ -715,3 +715,11 @@ db_ready() {
     # Re-enable output after the check
     output_on
 }
+
+## Function: Checks if a directory is empty
+## Usage:
+## - dir_empty <directory_path>
+## - Returns 0 (true) if the directory is empty, 1 (false) otherwise.
+dir_empty() {
+    [ ! -n "$(ls -A "$1" 2>/dev/null)" ]
+}
