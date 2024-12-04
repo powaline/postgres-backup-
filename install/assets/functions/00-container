@@ -1380,3 +1380,53 @@ package() {
     # Re-enable verbose output after package operations
     output_on
 }
+
+## Function: Prepares the service environment by loading defaults and functions
+## Usage:
+## - prepare_service [BOTH|DEFAULTS|FUNCTIONS] [optional arguments]
+## Notes:
+## - Calls `get_defaults` and `get_functions` based on context and options.
+## - Automatically detects if running in `cont-init.d` or outside.
+prepare_service() {
+    ## Check if an option is provided
+    if [ -n "$1" ] ; then
+        ## Determine execution context based on the script directory
+        case "$(dirname "$0")" in
+            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d" )
+                ## Initialization context: Load defaults and functions with all variables exported
+                set -a
+                get_defaults "$1"
+                get_functions "$1"
+                set +a
+            ;;
+            *)
+                ## Non-initialization context: Handle specific options for defaults/functions
+                case "$1" in
+                    "BOTH" | "both" | "ALL" | "all" )
+                        get_defaults "$2"
+                        get_functions "$2"
+                    ;;
+                    "DEFAULTS" | "defaults" )
+                        get_defaults "$2"
+                    ;;
+                    "FUNCTIONS" | "functions" )
+                        get_functions "$2"
+                    ;;
+                esac
+            ;;
+        esac
+    else
+        ## Default behavior when no options are provided
+        case "$(dirname "$0")" in
+            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                set -a
+                get_defaults
+                get_functions
+                set +a
+            ;;
+            *)
+                get_defaults
+            ;;
+        esac
+    fi
+}
