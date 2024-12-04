@@ -1078,3 +1078,49 @@ grant_sudo() {
     # Re-enable output after execution
     output_on
 }
+
+## Function: Adds custom entries to /etc/hosts
+## Usage:
+## - Define environment variables as CONTAINER_HOST_OVERRIDE_<number>=<destination_ip> <domain1> <domain2> ...
+## - Example:
+##   CONTAINER_HOST_OVERRIDE_01="192.168.1.1 example.com example.org"
+##   CONTAINER_HOST_OVERRIDE_02="host.example.net app.local"
+## Notes:
+## - Resolves `destination_ip` to an IP address if it is a hostname.
+## - Appends entries to `/etc/hosts` with comments for traceability.
+host_override() {
+    # Count the number of defined CONTAINER_HOST_OVERRIDE variables
+    _hostnum=$(printenv | sort | grep -cE '^CONTAINER_HOST_OVERRIDE_([0-9]+)')
+
+    # Iterate over each CONTAINER_HOST_OVERRIDE_<number> variable
+    for (( _host = 1; _host <= _hostnum; _host++ )); do
+        # Format the number to two digits
+        _host=$(printf "%02d" "$_host")
+
+        # Retrieve the value of the current host override variable
+        host_line=CONTAINER_HOST_OVERRIDE_${_host}
+        host_entry=${!host_line}
+
+        # Extract the destination IP or hostname from the variable
+        host_ip=$(echo "$host_entry" | awk '{print $1}')
+
+        # Resolve hostname to an IP address if necessary
+        if [[ ! "$host_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            host_ip=$(getent ahostsv4 "$host_ip" | grep -m 1 STREAM | awk '{print $1}')
+            if [ -z "$host_ip" ]; then
+                print_warn "Failed to resolve hostname '${host_entry}' to an IP address."
+                continue
+            fi
+        fi
+
+        # Extract the list of domains associated with the IP
+        host_domains=$(echo "$host_entry" | cut -d' ' -f2-)
+
+        # Append the entry to /etc/hosts with a comment for traceability
+        echo "# Added automatically by CONTAINER_HOST_OVERRIDE_${_host}" >> /etc/hosts
+        echo "${host_ip} ${host_domains}" >> /etc/hosts
+
+        # Print debug information about the added entry
+        print_debug "Added to /etc/hosts: ${host_ip} ${host_domains}"
+    done
+}
