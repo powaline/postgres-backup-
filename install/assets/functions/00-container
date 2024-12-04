@@ -1040,3 +1040,41 @@ grant_doas() {
     ## Re-enable output after execution
     output_on
 }
+
+## Function: Grants "sudo" privileges to a user
+## Usage:
+## - grant_sudo <username> [command]
+##   - If no command is specified, grants access to all commands.
+## Notes:
+## - Appends configuration to `/etc/sudoers`.
+## - Marks this function as deprecated and suggests using `grant_doas` instead.
+grant_sudo() {
+    # Disable output during execution
+    output_off
+
+    # Ensure username is provided
+    if [ -n "$1" ]; then
+        # Determine the command or default to "ALL"
+        if [ -n "$2" ]; then
+            sudo_command="$2"
+        else
+            sudo_command="ALL"
+        fi
+
+        # Debug message for tracking privilege assignment
+        print_debug "Adding Sudo privileges to '$1' for '${sudo_command}' command"
+
+        # Append the privilege rule to /etc/sudoers
+        echo "%$1 ALL=(ALL) NOPASSWD:${sudo_command}" >> /etc/sudoers
+
+        # Ensure the sudoers file remains valid
+        if ! visudo -cf /etc/sudoers &>/dev/null; then
+            print_error "Invalid sudoers file. Reverting changes."
+            sed -i "/%$1 ALL=(ALL) NOPASSWD:${sudo_command}/d" /etc/sudoers
+            exit 1
+        fi
+    fi
+
+    # Re-enable output after execution
+    output_on
+}
