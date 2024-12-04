@@ -723,3 +723,11 @@ db_ready() {
 dir_empty() {
     [ ! -n "$(ls -A "$1" 2>/dev/null)" ]
 }
+
+## Function: Checks if a directory is not empty
+## Usage:
+## - dir_notempty <directory_path>
+## - Returns 0 (true) if the directory contains files, 1 (false) otherwise.
+dir_notempty() {
+    [ -n "$(ls -A "$1" 2>/dev/null)" ]
+}
