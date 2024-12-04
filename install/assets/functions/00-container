@@ -1430,3 +1430,45 @@ prepare_service() {
         esac
     fi
 }
+
+## Function: Logs debug-level messages with optional color and file output
+## Usage:
+## - print_debug <message>
+## Notes:
+## - Uses `CONTAINER_LOG_LEVEL` and `CONTAINER_LOG_FILE_LEVEL` to determine verbosity.
+## - Supports colorized output and file logging based on environment variables.
+print_debug() {
+    # Temporarily disable verbose output
+    output_off
+
+    # Determine log behavior based on CONTAINER_LOG_LEVEL
+    case "${CONTAINER_LOG_LEVEL,,}" in
+        "debug" )
+            if [ "${DEBUG_MODE,,}" = "true" ]; then
+                # Debug mode active with optional colorization
+                if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                    echo -e "$(log_prefix)[DEBUG] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+                else
+                    echo -e "$(log_prefix)${bdm}[DEBUG]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+                fi
+            else
+                # Non-debug mode with optional colorization
+                if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                    echo -e "$(log_prefix)[DEBUG] ** [${PROCESS_NAME}] $1"
+                else
+                    echo -e "$(log_prefix)${bdm}[DEBUG]${boff} ** [${PROCESS_NAME}] $1"
+                fi
+            fi
+        ;;
+    esac
+
+    # Handle file logging based on CONTAINER_LOG_FILE_LEVEL
+    case "${CONTAINER_LOG_FILE_LEVEL,,}" in
+        "debug" )
+            echo -e "$(log_prefix)[DEBUG] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+        ;;
+    esac
+
+    # Re-enable verbose output
+    output_on
+}
