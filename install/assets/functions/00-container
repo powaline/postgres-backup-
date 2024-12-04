@@ -1226,3 +1226,39 @@ output_off() {
         set +x
     fi
 }
+
+## Function: Enables verbose output to aid debugging
+## Usage:
+## - output_on
+## Notes:
+## - Re-enables verbose output if `DEBUG_MODE` is set to "true".
+## - Handles special cases for specific script names or directories.
+output_on() {
+    # Check if debug mode is enabled
+    if [ "${DEBUG_MODE,,}" = "true" ]; then
+        # Determine behavior based on script name or directory context
+        case "$(basename "$0")" in
+            0*-* | 99-* )
+                # Skip verbose output for scripts matching special patterns
+                :
+            ;;
+            run )
+                # Additional checks for scripts in the "run" context
+                case "$PWD" in
+                    */0*-* | 99-* )
+                        # Skip verbose output for directories matching special patterns
+                        :
+                    ;;
+                    * )
+                        # Enable verbose output for other directories
+                        set -x
+                    ;;
+                esac
+            ;;
+            * )
+                # Enable verbose output for all other cases
+                set -x
+            ;;
+        esac
+    fi
+}
