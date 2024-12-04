@@ -731,3 +731,46 @@ dir_empty() {
 dir_notempty() {
     [ -n "$(ls -A "$1" 2>/dev/null)" ]
 }
+
+## Function: Loads a variable from a file or directly from the environment
+## Usage:
+## - file_env VAR [DEFAULT]
+##   Example: file_env 'XYZ_DB_PASSWORD' 'example'
+## Notes:
+## - If Docker secrets are enabled, this function supports loading values securely.
+## - Allows the value of `VAR` to be set from a file specified by `VAR_FILE`.
+## - If both `VAR` and `VAR_FILE` are unset, an error is raised, and the script exits.
+## - Ensures compatibility with Docker's secrets feature for secure configuration management.
+file_env() {
+    # Ensure Docker secrets are enabled before processing
+    if [ "${CONTAINER_ENABLE_DOCKER_SECRETS,,}" = "true" ]; then
+        local var="$1"              # Variable name
+        local fileVar="${var}_FILE" # Corresponding file variable name (e.g., VAR_FILE)
+        local def="${2:-}"          # Default value if no variable or file is set
+        local val="$def"            # Initial value to be exported
+
+        # Check if the file variable is set and read its contents
+        if [ "${!fileVar:-}" ]; then
+            if [ -f "${!fileVar}" ]; then
+                val="$(cat "${!fileVar}")"
+            else
+                # Error if the file does not exist or is not readable
+                print_error "error: file '${!fileVar}' specified in ${fileVar} does not exist or is not readable"
+                exit 1
+            fi
+        elif [ "${!var:-}" ]; then
+            # Use the value of the environment variable if set
+            val="${!var}"
+        fi
+
+        # Ensure a valid value is set, either from the file or the environment variable
+        if [ -z "${val}" ]; then
+            print_error "error: neither $var nor $fileVar are set but are required"
+            exit 1
+        fi
+
+        # Export the final value and unset the file variable to avoid conflicts
+        export "$var"="$val"
+        unset "$fileVar"
+    fi
+}
