@@ -1262,3 +1262,121 @@ output_on() {
         esac
     fi
 }
+
+## Function: Manages package operations for the container
+## Usage:
+## - package <action> [arguments...]
+## Actions:
+## - install: Installs packages based on the distro.
+## - remove: Removes packages, with optional cleanup for specific distros.
+## - update: Updates package indexes.
+## - upgrade: Upgrades installed packages.
+## - cleanup: Cleans up cache and temporary files.
+## Notes:
+## - Supports Alpine, Debian, and Ubuntu distributions.
+## - Automatically detects the distribution from `/etc/os-release`.
+package() {
+    # Cleans up temporary files and caches after package operations
+    cleanup() {
+        case "${distro}" in
+            "alpine" )
+                rm -rf /root/.gitconfig
+                rm -rf /var/cache/apk/*
+            ;;
+            "debian" | "ubuntu" )
+                apt-get clean -y
+                rm -rf /root/.gitconfig
+                rm -rf /var/lib/apt/lists/*
+            ;;
+        esac
+    }
+
+    # Installs packages based on the detected distribution
+    install() {
+        case "${distro}" in
+            "alpine" )
+                if [[ "${1}" =~ ^\..* ]]; then
+                    local dependencies="-t"
+                fi
+                apk add ${dependencies} "${@}"
+            ;;
+            "debian" | "ubuntu" )
+                if [[ "${1}" =~ ^\..* ]]; then
+                    shift
+                fi
+                apt-get install -y --no-install-recommends "${@}"
+            ;;
+        esac
+    }
+
+    # Removes packages based on the detected distribution
+    remove() {
+        case "${distro}" in
+            "alpine" )
+                apk del "${@}"
+            ;;
+            "debian" | "ubuntu" )
+                local packages="${@}"
+                if [[ "${packages}" =~ \..* ]]; then
+                    packages=$(echo "${packages}" | sed "s|\..* ||g")
+                fi
+                apt-get purge -y ${packages}
+                apt-get autoremove -y
+            ;;
+        esac
+    }
+
+    # Updates package indexes
+    update() {
+        case "${distro}" in
+            "alpine" )
+                apk update
+            ;;
+            "debian" | "ubuntu" )
+                apt-get update
+            ;;
+        esac
+    }
+
+    # Upgrades installed packages
+    upgrade() {
+        case "${distro}" in
+            "alpine" )
+                apk upgrade
+            ;;
+            "debian" | "ubuntu" )
+                apt-get upgrade -y
+            ;;
+        esac
+    }
+
+    # Disable verbose output during package operations
+    output_off
+
+    # Detect the distribution from `/etc/os-release`
+    local distro
+    distro=$(cat /etc/os-release | grep ^ID= | cut -d = -f2)
+
+    # Determine the requested action and corresponding arguments
+    local action="${1}"
+    shift
+    local arguments="${@}"
+
+    # Route actions to the appropriate function
+    case "${action}" in
+        add | install )
+            action=install
+            "${action}" "${arguments}"
+        ;;
+        delete | remove | uninstall )
+            action=remove
+            "${action}" "${arguments}"
+        ;;
+        * )
+            "${action}" "${arguments}"
+        ;;
+    esac
+
+    # Re-enable verbose output after package operations
+    output_on
+}
