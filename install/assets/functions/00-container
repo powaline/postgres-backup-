@@ -774,3 +774,117 @@ file_env() {
         unset "$fileVar"
     fi
 }
+
+## Function: Loads default configurations based on the specified scope
+## Usage:
+## - get_defaults [scope]
+##   - Scope options:
+##     - "all": Loads all configuration files in `/assets/defaults/`.
+##     - "app" or "single": Loads the default configuration for the current script or working directory.
+##     - <comma-separated list>: Loads specific files by name.
+## - If no scope is provided, defaults to loading all files.
+## Notes:
+## - Handles special cases for files starting with "0*" or "99*".
+## - Provides debug output for tracing loaded defaults.
+get_defaults() {
+    if [ -n "$1" ]; then
+        case "${1,,}" in
+            "all" )
+                # Load all default configuration files
+                for d in /assets/defaults/*; do
+                    print_debug "Container: Loading defaults for '${d}' (ALL)"
+                    # Handle special case files starting with "0*" or "99*"
+                    case "$(basename "${d}")" in
+                        0*-* | 99-* )
+                            output_off
+                            source "${d}"
+                            output_on
+                        ;;
+                        * )
+                            source "${d}"
+                        ;;
+                    esac
+                done
+            ;;
+            "app" | "single" )
+                # Load default configuration for the current script or directory
+                case "$(dirname "$0")" in
+                    "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d" )
+                        # Handle defaults for the current script
+                        if [ -f "/assets/defaults/$(basename "$0")" ]; then
+                            print_debug "Container: Loading defaults for '$(basename "$0")'"
+                            case "$(basename "$0")" in
+                                0*-* | 99-* )
+                                    output_off
+                                    source /assets/defaults/"$(basename "$0")"
+                                    output_on
+                                ;;
+                                * )
+                                    source /assets/defaults/"$(basename "$0")"
+                                ;;
+                            esac
+                        else
+                            print_debug "Container: No defaults available for '$(basename "$0")'"
+                        fi
+                    ;;
+                    * )
+                        # Handle defaults for the current directory
+                        if [ -f "/assets/defaults/$(basename "$PWD")" ]; then
+                            print_debug "Container: Loading defaults for '$(basename "$PWD")'"
+                            case "$(basename "$PWD")" in
+                                0*-* | 99-* )
+                                    output_off
+                                    source /assets/defaults/"$(basename "$PWD")"
+                                    output_on
+                                ;;
+                                * )
+                                    source /assets/defaults/"$(basename "$PWD")"
+                                ;;
+                            esac
+                        else
+                            print_debug "Container: No defaults available for '$(basename "$PWD")'"
+                        fi
+                    ;;
+                esac
+            ;;
+            * )
+                # Load specific configuration files based on a comma-separated list
+                defaults=$(echo "$1" | tr "," "\n")
+                for d in $defaults; do
+                    if [ -f "/assets/defaults/${d}" ]; then
+                        print_debug "Container: Loading defaults for '${d}'"
+                        case "${d}" in
+                            0*-* | 99-* )
+                                output_off
+                                source /assets/defaults/"${d}"
+                                output_on
+                            ;;
+                            * )
+                                source /assets/defaults/"${d}"
+                            ;;
+                        esac
+                    else
+                        print_debug "Container: No defaults available for '${d}'"
+                    fi
+                done
+            ;;
+        esac
+    else
+        # Load all default configuration files if no scope is provided
+        for d in /assets/defaults/*; do
+            print_debug "Container: Loading defaults for '${d}' (NO SCOPE)"
+            case "$(basename "${d}")" in
+                0*-* | 99-* )
+                    output_off
+                    source /assets/defaults/00-container
+                    source "${d}"
+                    output_on
+                ;;
+                * )
+                    source /assets/defaults/00-container
+                    source "${d}"
+                ;;
+            esac
+        done
+    fi
+}
