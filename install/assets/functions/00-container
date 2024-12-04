@@ -1005,3 +1005,38 @@ get_image_version() {
     # Re-enable output after the version retrieval process
     output_on
 }
+
+## Function: Grants "doas" privileges to a user
+## Usage:
+## - grant_doas <username> [command]
+##   - If no command is specified, the user gets access to all commands.
+## Notes:
+## - Appends the configuration to `/etc/doas.conf`.
+## - Ensures the configuration file has appropriate permissions.
+grant_doas() {
+    ## Disable output to reduce noise during execution
+    output_off
+
+    ## Check if the username argument is provided
+    if [ -n "$1" ]; then
+        print_debug "Adding Doas privileges to '$1'"
+
+        ## Handle optional command argument
+        if [ -n "$2" ]; then
+            doas_command="cmd $2"
+            print_debug "Adding Doas privileges to '$1' for command '$2'"
+        else
+            doas_command=""
+        fi
+
+        ## Append privilege rule to the configuration file
+        echo "permit nopass $1 ${doas_command} as root" >> /etc/doas.conf
+
+        ## Set ownership and secure permissions for the configuration file
+        chown root:root /etc/doas.conf
+        chmod 0400 -R /etc/doas.conf
+    fi
+
+    ## Re-enable output after execution
+    output_on
+}
