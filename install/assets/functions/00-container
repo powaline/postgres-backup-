@@ -1729,3 +1729,350 @@ silent() {
     fi
 }
 
+## Function: Validates database configuration parameters based on the specified database type
+## Usage:
+## - sanity_db <dbtype>
+## Notes:
+## - Supports validation for multiple database types like CouchDB, InfluxDB, MongoDB, MySQL, etc.
+## - Legacy fallback is included for compatibility with older implementations.
+sanity_db() {
+    # Temporarily disable verbose output
+    output_off
+
+    # Check if the database type argument is provided
+    if [ -n "$1" ]; then
+        case "${1,,}" in
+            "couch" | "couchdb" )
+                ## Validate CouchDB database parameters
+                ## Checks environment variables DB_HOST or COUCH_HOST for the database host
+
+                print_debug "Checking CouchDB parameters"
+
+                # Load and prioritize DB_HOST
+                transform_file_var DB_HOST
+                if [ -n "${DB_HOST}" ]; then
+                    couch_host=${DB_HOST}
+                fi
+
+                # Load and prioritize COUCH_HOST
+                transform_file_var COUCH_HOST
+                if [ -n "${COUCH_HOST}" ]; then
+                    couch_host=${COUCH_HOST}
+                fi
+
+                # Exit with an error if no host is defined
+                if [ -z "${couch_host}" ]; then
+                    print_error "No CouchDB host defined! Set '\$DB_HOST' or '\$COUCH_HOST'."
+                    exit 1
+                fi
+            ;;
+            "influx" | "influxdb")
+                ## Validate InfluxDB database parameters
+                ## Checks environment variables DB_HOST or INFLUX_HOST for the database host
+
+                print_debug "Checking InfluxDB parameters"
+
+                # Load and prioritize DB_HOST
+                if [ -n "${DB_HOST}" ]; then
+                    influx_host=${DB_HOST}
+                fi
+                transform_file_var DB_HOST
+
+                # Load and prioritize INFLUX_HOST
+                if [ -n "${INFLUX_HOST}" ]; then
+                    influx_host=${INFLUX_HOST}
+                fi
+                transform_file_var INFLUX_HOST
+
+                # Exit with an error if no host is defined
+                if [ -z "${influx_host}" ]; then
+                    print_error "No InfluxDB host defined! Set '\$DB_HOST' or '\$INFLUX_HOST'."
+                    exit 1
+                fi
+            ;;
+            "mongo" | "mongodb" )
+                ## Validate MongoDB database parameters
+                ## Checks environment variables DB_HOST or MONGO_HOST for the database host
+
+                print_debug "Checking MongoDB parameters"
+
+                # Load and prioritize DB_HOST
+                if [ -n "${DB_HOST}" ]; then
+                    mongo_host=${DB_HOST}
+                fi
+                transform_file_var DB_HOST
+
+                # Load and prioritize MONGO_HOST
+                if [ -n "${MONGO_HOST}" ]; then
+                    mongo_host=${MONGO_HOST}
+                fi
+                transform_file_var MONGO_HOST
+
+                # Exit with an error if no host is defined
+                if [ -z "${mongo_host}" ]; then
+                    print_error "No MongoDB host defined! Set '\$DB_HOST' or '\$MONGO_HOST'."
+                    exit 1
+                fi
+            ;;
+            "mysql" | "mariadb" )
+                ## Validate MariaDB/MySQL database parameters
+                ## Checks environment variables for host, user, password, and database name
+
+                print_debug "Checking MariaDB/MySQL parameters"
+
+                # Load and prioritize DB_HOST, MYSQL_HOST, MARIA_HOST for the database host
+                transform_file_var DB_HOST
+                if [ -n "${DB_HOST}" ]; then
+                    maria_host=${DB_HOST}
+                fi
+                transform_file_var MYSQL_HOST
+                if [ -n "${MYSQL_HOST}" ]; then
+                    maria_host=${MYSQL_HOST}
+                fi
+                transform_file_var MARIA_HOST
+                if [ -n "${MARIA_HOST}" ]; then
+                    maria_host=${MARIA_HOST}
+                fi
+
+                # Load and prioritize DB_USER, MYSQL_USER, MARIA_USER for the database user
+                transform_file_var DB_USER
+                if [ -n "${DB_USER}" ]; then
+                    maria_user=${DB_USER}
+                fi
+                transform_file_var MYSQL_USER
+                if [ -n "${MYSQL_USER}" ]; then
+                    maria_user=${MYSQL_USER}
+                fi
+                transform_file_var MARIA_USER
+                if [ -n "${MARIA_USER}" ]; then
+                    maria_user=${MARIA_USER}
+                fi
+
+                # Load and prioritize DB_PASS, MYSQL_PASS, MARIA_PASS for the database password
+                transform_file_var DB_PASS
+                if [ -n "${DB_PASS}" ]; then
+                    maria_pass=${DB_PASS}
+                fi
+                transform_file_var MYSQL_PASS
+                if [ -n "${MYSQL_PASS}" ]; then
+                    maria_pass=${MYSQL_PASS}
+                fi
+                transform_file_var MARIA_PASS
+                if [ -n "${MARIA_PASS}" ]; then
+                    maria_pass=${MARIA_PASS}
+                fi
+
+                # Load and prioritize DB_NAME, MYSQL_NAME, MARIA_NAME for the database name
+                transform_file_var DB_NAME
+                if [ -n "${DB_NAME}" ]; then
+                    maria_name=${DB_NAME}
+                fi
+                transform_file_var MYSQL_NAME
+                if [ -n "${MYSQL_NAME}" ]; then
+                    maria_name=${MYSQL_NAME}
+                fi
+                transform_file_var MARIA_NAME
+                if [ -n "${MARIA_NAME}" ]; then
+                    maria_name=${MARIA_NAME}
+                fi
+
+                # Validate required parameters and exit with error messages if missing
+                if [ -z "${maria_host}" ]; then
+                    print_error "No MariaDB/MySQL database host defined! Set '\$DB_HOST' or '\$MARIA_HOST'."
+                    exit 1
+                fi
+
+                if [ -z "${maria_name}" ]; then
+                    print_error "No MariaDB/MySQL database name defined! Set '\$DB_NAME' or '\$MARIA_NAME'."
+                    exit 1
+                fi
+
+                if [ -z "${maria_user}" ]; then
+                    print_error "No MariaDB/MySQL database user defined! Set '\$DB_USER' or '\$MARIA_USER'."
+                    exit 1
+                fi
+
+                if [ -z "${maria_pass}" ]; then
+                    print_error "No MariaDB/MySQL database password defined! Set '\$DB_PASS' or '\$MARIA_PASS'."
+                    exit 1
+                fi
+            ;;
+            "pgsql" | "psql" | "postgres" | "postgresql" )
+                ## Validate PostgreSQL database parameters
+                ## Checks environment variables for host, user, password, and database name
+
+                print_debug "Checking PostgreSQL parameters"
+
+                # Load and prioritize DB_HOST, POSTGRES_HOST for the database host
+                transform_file_var DB_HOST
+                if [ -n "${DB_HOST}" ]; then
+                    postgres_host=${DB_HOST}
+                fi
+                transform_file_var POSTGRES_HOST
+                if [ -n "${POSTGRES_HOST}" ]; then
+                    postgres_host=${POSTGRES_HOST}
+                fi
+
+                # Load and prioritize DB_USER, POSTGRES_USER for the database user
+                transform_file_var DB_USER
+                if [ -n "${DB_USER}" ]; then
+                    postgres_user=${DB_USER}
+                fi
+                transform_file_var POSTGRES_USER
+                if [ -n "${POSTGRES_USER}" ]; then
+                    postgres_user=${POSTGRES_USER}
+                fi
+
+                # Load and prioritize DB_PASS, PGPASSWORD for the database password
+                transform_file_var DB_PASS
+                if [ -n "${DB_PASS}" ]; then
+                    postgres_pass=${DB_PASS}
+                fi
+                transform_file_var PGPASSWORD
+                if [ -n "${PGPASSWORD}" ]; then
+                    postgres_pass=${PGPASSWORD}
+                fi
+
+                # Load and prioritize DB_NAME, POSTGRES_NAME for the database name
+                transform_file_var DB_NAME
+                if [ -n "${DB_NAME}" ]; then
+                    postgres_name=${DB_NAME}
+                fi
+                transform_file_var POSTGRES_NAME
+                if [ -n "${POSTGRES_NAME}" ]; then
+                    postgres_name=${POSTGRES_NAME}
+                fi
+
+                # Validate required parameters and exit with error messages if missing
+                if [ -z "${postgres_host}" ]; then
+                    print_error "No PostgreSQL database host defined! Set '\$DB_HOST' or '\$POSTGRES_HOST'."
+                    exit 1
+                fi
+
+                if [ -z "${postgres_name}" ]; then
+                    print_error "No PostgreSQL database name defined! Set '\$DB_NAME' or '\$POSTGRES_NAME'."
+                    exit 1
+                fi
+
+                if [ -z "${postgres_user}" ]; then
+                    print_error "No PostgreSQL database user defined! Set '\$DB_USER' or '\$POSTGRES_USER'."
+                    exit 1
+                fi
+
+                if [ -z "${postgres_pass}" ]; then
+                    print_error "No PostgreSQL database password defined! Set '\$DB_PASS' or '\$POSTGRES_PASS'."
+                    exit 1
+                fi
+            ;;
+            "rabbit" | "rabbitmq" )
+                ## Validate RabbitMQ database parameters
+                ## Checks environment variables for RabbitMQ host
+
+                transform_file_var DB_HOST
+                if [ -n "${DB_HOST}" ]; then
+                    rabbit_host=${DB_HOST}
+                fi
+
+                transform_file_var RABBIT_HOST
+                if [ -n "${RABBIT_HOST}" ]; then
+                    rabbit_host=${RABBIT_HOST}
+                fi
+
+                transform_file_var RABBITMQ_HOST
+                if [ -n "${RABBITMQ_HOST}" ]; then
+                    rabbit_host=${RABBITMQ_HOST}
+                fi
+
+                # Validate RabbitMQ host and exit if not provided
+                if [ -z "${rabbit_host}" ]; then
+                    print_error "No RabbitMQ Database Host Entered! - Set '\$DB_HOST', '\$RABBIT_HOST', or '\$RABBITMQ_HOST'."
+                    exit 1
+                fi
+            ;;
+            "redis" )
+                ## Validate Redis database parameters
+                ## Checks environment variables for Redis host
+
+                print_debug "Checking Redis DB Parameters"
+
+                transform_file_var DB_HOST
+                if [ -n "${DB_HOST}" ]; then
+                    redis_host=${DB_HOST}
+                fi
+
+                transform_file_var REDIS_HOST
+                if [ -n "${REDIS_HOST}" ]; then
+                    redis_host=${REDIS_HOST}
+                fi
+
+                # Validate Redis host and exit if not provided
+                if [ -z "${redis_host}" ]; then
+                    print_error "No Redis Database Host Entered! - Set '\$DB_HOST' or '\$REDIS_HOST'."
+                    exit 1
+                fi
+            ;;
+            "rethink" )
+                ## Validate RethinkDB database parameters
+                ## Checks environment variables for RethinkDB host
+
+                print_debug "Checking RethinkDB DB Parameters"
+
+                transform_file_var DB_HOST
+                if [ -n "${DB_HOST}" ]; then
+                    rethink_host=${DB_HOST}
+                fi
+
+                transform_file_var RETHINK_HOST
+                if [ -n "${RETHINK_HOST}" ]; then
+                    rethink_host=${RETHINK_HOST}
+                fi
+
+                # Validate RethinkDB host and exit if not provided
+                if [ -z "${rethink_host}" ]; then
+                    print_error "No Rethink Database Host Entered! - Set '\$DB_HOST' or '\$RETHINK_HOST'."
+                    exit 1
+                fi
+            ;;
+        esac
+
+        # Re-enable verbose output
+        output_on
+    else
+        ## Legacy fallback for database checking
+        ## This logic is deprecated and will eventually be removed in future updates.
+        ## Suggestion: Upgrade to use the `db_ready` command with specific DB_TYPE arguments.
+
+        print_debug "Using Legacy db_ready command - please upgrade."
+
+        # Check and validate the database host
+        transform_file_var DB_HOST
+        if [ -z "${DB_HOST}" ]; then
+            print_error "No Database Host Entered! - Set '\$DB_HOST'."
+            exit 1
+        fi
+
+        # Check and validate the database name
+        transform_file_var DB_NAME
+        if [ -z "${DB_NAME}" ]; then
+            print_error "No Database Name Entered! - Set '\$DB_NAME'."
+            exit 1
+        fi
+
+        # Check and validate the database user
+        transform_file_var DB_USER
+        if [ -z "${DB_USER}" ]; then
+            print_error "No Database User Entered! - Set '\$DB_USER'."
+            exit 1
+        fi
+
+        # Check and validate the database password
+        transform_file_var DB_PASS
+        if [ -z "${DB_PASS}" ]; then
+            print_error "No Database Password Entered! - Set '\$DB_PASS'."
+            exit 1
+        fi
+
+        # Re-enable verbose output after validation
+        output_on
+    fi
+}
