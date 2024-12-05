@@ -2389,3 +2389,30 @@ truefalse_onoff() {
         fi
     fi
 }
+
+## Function: Converts boolean-like values (TRUE/FALSE) to "1/0"
+## Usage:
+## - truefalse_onezero <varname>
+##   Example: truefalse_onezero VAR
+## Notes:
+## - Converts "TRUE"/"YES" to "1" and "FALSE"/"NO" to "0".
+## - Does not require a `$` prefix for the variable name.
+truefalse_onezero() {
+    # Extract the variable's value and name
+    local value var
+    value=$(set | grep "^${1}=" | cut -d '=' -f2)
+    var=$(set | grep "^${1}=" | sed "s/=.*//g")
+
+    # Check if the value represents a boolean TRUE/YES
+    if [[ "${value,,}" == "true" || "${value,,}" == "yes" ]]; then
+        print_debug "Converting Variable Name '${var}' value to '1'"
+        unset "$1"  # Unset the variable to avoid conflicts
+        export "$1=1"  # Assign "1" to the variable
+
+    # Check if the value represents a boolean FALSE/NO
+    elif [[ "${value,,}" == "false" || "${value,,}" == "no" ]]; then
+        print_debug "Converting Variable Name '${var}' value to '0'"
+        unset "$1"  # Unset the variable to avoid conflicts
+        export "$1=0"  # Assign "0" to the variable
+    fi
+}
