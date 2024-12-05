@@ -2298,3 +2298,40 @@ update_template() {
         rm -f "${template_tmp_file}"
     done
 }
+
+## Function: Transforms environment variables by reading values from associated files
+## Usage:
+## - transform_file_var <VAR>
+##   Example: transform_file_var 'XYZ_DB_PASSWORD'
+## Notes:
+## - If `<VAR>_FILE` is set as an environment variable, the function reads the file's contents
+##   and assigns it to `<VAR>`.
+## - Primarily used to integrate Docker secrets securely into the application.
+transform_file_var() {
+    # Convert input arguments into a newline-separated list
+    local variables
+    variables=$(echo "$@" | tr " " "\n")
+
+    # Iterate over each variable in the input
+    for variable in $variables; do
+        # Check if the corresponding "<variable>_FILE" exists as an environment variable
+        if [ -v "${variable}_FILE" ]; then
+            # Reference the "<variable>_FILE" environment variable
+            local file_variable="${variable}_FILE"
+
+            # Verify the file exists and is readable
+            if [ ! -f "${!file_variable}" ]; then
+                print_error "[transform_file_var] ${file_variable} is set as an environment variable, but the file does not exist"
+                return 1
+            fi
+
+            # Populate the variable with the contents of the file
+            export "${variable}"="$(cat "${!file_variable}")"
+            print_debug "[transform_file_var] Populated '${variable}' from '${file_variable}'"
+        fi
+    done
+
+    # Cleanup temporary variables
+    unset file_variable
+    unset variables
+}
