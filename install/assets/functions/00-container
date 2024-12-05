@@ -2196,3 +2196,55 @@ showoff() {
     # Re-enable verbose output
     output_on
 }
+
+## Function: Converts TRUE/FALSE or YES/NO values to consistent "yes" or "no"
+## Usage:
+## - truefalse_yesno <varname> [uppercase|lowercase]
+## Notes:
+## - The first argument is the name of the variable to convert (do not prefix with $).
+## - The second optional argument specifies the case format: "uppercase" or "lowercase".
+## - Modifies the environment variable in-place.
+truefalse_yesno() {
+    # Retrieve the current value and variable name
+    value=$(set | grep "${1}"= | cut -d '=' -f2)
+    var=$(set | grep "${1}"= | sed "s/=.*//g")
+
+    # Check if the value corresponds to TRUE/YES and convert to "yes"
+    if [ "${value,,}" = "true" ] || [ "${value,,}" = "yes" ]; then
+        print_debug "Converting variable '${var}' value to 'yes'"
+        unset "$1"  # Unset the variable to overwrite it
+        if [ -n "$2" ]; then
+            # Handle case format if specified
+            case "${2,,}" in
+                "uppercase" | "upper" | "uc" )
+                    export "$1=YES"
+                ;;
+                "lowercase" | "lower" | "lc" )
+                    export "$1=yes"
+                ;;
+            esac
+        else
+            # Default to lowercase if no format is specified
+            export "$1=yes"
+        fi
+
+    # Check if the value corresponds to FALSE/NO and convert to "no"
+    elif [ "${value,,}" = "false" ] || [ "${value,,}" = "no" ]; then
+        print_debug "Converting variable '${var}' value to 'no'"
+        unset "$1"
+        if [ -n "$2" ]; then
+            # Handle case format if specified
+            case "${2,,}" in
+                "uppercase" | "upper" | "uc" )
+                    export "$1=NO"
+                ;;
+                "lowercase" | "lower" | "lc" )
+                    export "$1=no"
+                ;;
+            esac
+        else
+            # Default to lowercase if no format is specified
+            export "$1=no"
+        fi
+    fi
+}
