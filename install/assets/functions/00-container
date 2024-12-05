@@ -1670,3 +1670,44 @@ print_start() {
     # Re-enable verbose output
     output_on
 }
+
+## Function: Logs warning-level messages to console and file
+## Usage:
+## - print_warn <message>
+## Notes:
+## - Supports colorized and non-colorized output based on environment variables.
+## - Logs messages to console and file depending on `CONTAINER_LOG_LEVEL` and `CONTAINER_LOG_FILE_LEVEL`.
+print_warn() {
+    # Temporarily disable verbose output
+    output_off
+
+    # Log warning message to console based on log level and color settings
+    case "${CONTAINER_LOG_LEVEL,,}" in
+        "debug" | "notice" | "warn" )
+            log_message="[WARN] ** [${PROCESS_NAME}] $1"
+            if [ "${DEBUG_MODE,,}" = "true" ]; then
+                if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                    echo -e "$(log_prefix)${log_message}"
+                else
+                    echo -e "$(log_prefix)${bdb}[WARN]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+                fi
+            else
+                if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                    echo -e "$(log_prefix)${log_message}"
+                else
+                    echo -e "$(log_prefix)${bdb}[WARN]${boff} ** [${PROCESS_NAME}] $1"
+                fi
+            fi
+        ;;
+    esac
+
+    # Append warning message to log file based on file log level
+    case "${CONTAINER_LOG_FILE_LEVEL,,}" in
+        "debug" | "notice" | "warn" )
+            echo -e "$(log_prefix)[WARN] ** [${PROCESS_NAME}] $1" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+        ;;
+    esac
+
+    # Re-enable verbose output
+    output_on
+}
