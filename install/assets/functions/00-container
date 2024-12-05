@@ -1594,3 +1594,79 @@ print_notice() {
     # Re-enable verbose output
     output_on
 }
+
+## Function: Manages the start process of a containerized service
+## Usage:
+## - print_start <message>
+## Notes:
+## - Handles process counters and protects against runaway processes.
+## - Logs service start events to console and file with optional colorization.
+## - Executes process helper scripts if configured.
+print_start() {
+    # Disable verbose output temporarily
+    output_off
+
+    # Process counter logic
+    if [ "${CONTAINER_ENABLE_PROCESS_COUNTER,,}" = "true" ] ; then
+        # Check if process counter file exists and calculate count
+        if [ -f /tmp/.container/"$(basename $PWD)" ]; then
+            proc_start_count=$(cat /tmp/.container/"$(basename $PWD)" | wc -l)
+            proc_start_wrapper="[${proc_start_count}] "
+        fi
+
+        # Initialize process counter if not already set
+        if [ -z "${proc_start_count}" ] ; then proc_start_count=1 ; fi
+
+        # Prepare arguments for the process helper script
+        proc_help_arg="$(date +"${CONTAINER_PROCESS_HELPER_DATE_FMT}") $(date +"${CONTAINER_PROCESS_HELPER_TIME_FMT}") $(basename "$(pwd)") ${proc_start_count} $(cat /etc/hostname)"
+
+        # Check if a process helper script exists and execute it
+        if [ -d "${CONTAINER_PROCESS_HELPER_PATH}" ]; then
+            if [ -f "${CONTAINER_PROCESS_HELPER_PATH}"/"$(basename $0)".sh ]; then
+                exec "${CONTAINER_PROCESS_HELPER_PATH}"/"$(basename $0)".sh "${proc_help_arg}"
+            elif [ -f "${CONTAINER_PROCESS_HELPER_PATH}"/"${CONTAINER_PROCESS_HELPER_SCRIPT}".sh ] ; then
+                exec "${CONTAINER_PROCESS_HELPER_PATH}"/"${CONTAINER_PROCESS_HELPER_SCRIPT}".sh "${proc_help_arg}"
+            fi
+        fi
+
+        # Runaway process protection
+        if [ "${CONTAINER_PROCESS_RUNAWAY_PROTECTOR,,}" = "true" ] ; then
+            # Show final output if process count hits the limit
+            if [ "${CONTAINER_PROCESS_RUNAWAY_SHOW_OUTPUT_FINAL,,}" = "true" ] ; then
+                if [ "${proc_start_count}" -eq "${CONTAINER_PROCESS_RUNAWAY_LIMIT}" ] ; then SHOW_OUTPUT=TRUE ; fi
+            fi
+
+            # Disable service if process count exceeds limit
+            if [ "${proc_start_count}" -gt "${CONTAINER_PROCESS_RUNAWAY_LIMIT}" ] ; then
+                print_error "POTENTIAL RUNWAY DETECTED: Disabling $(basename $PWD) service because it has tried restarting '${CONTAINER_PROCESS_RUNAWAY_LIMIT}' times"
+                s6-svc -d /var/run/s6/legacy-services/$(basename "$PWD")
+                sleep 3
+                exit 1
+            fi
+
+            # Log and apply a delay between restarts
+            print_debug "[process_restart] - Sleeping for ${CONTAINER_PROCESS_RUNAWAY_DELAY} seconds"
+            if [ "${proc_start_count}" -gt 1 ] ; then sleep "${CONTAINER_PROCESS_RUNAWAY_DELAY}" ; fi
+        fi
+    fi
+
+    # Log starting message based on DEBUG_MODE and colorization settings
+    if [ "${DEBUG_MODE,,}" = "true" ] ; then
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ] ; then
+            echo -e "$(log_prefix)[STARTING] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] ${proc_start_wrapper}$1"
+        else
+            echo -e "$(log_prefix)${bdg}[STARTING]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] ${proc_start_wrapper}$1"
+        fi
+        echo -e "$(log_prefix)[STARTING] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] ${proc_start_wrapper}$1" >> "${CONTAINER_LOG_FILE_PATH}"/"${CONTAINER_LOG_FILE_NAME}"
+    else
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ] ; then
+            echo -e "$(log_prefix)[STARTING] ** [${PROCESS_NAME}] ${proc_start_wrapper}$1"
+        else
+            echo -e "$(log_prefix)${bdg}[STARTING]${boff} ** [${PROCESS_NAME}] ${proc_start_wrapper}$1"
+        fi
+        echo -e "$(log_prefix)[STARTING] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] ${proc_start_wrapper}$1" >> "${CONTAINER_LOG_FILE_PATH}"/"${CONTAINER_LOG_FILE_NAME}"
+    fi
+
+    # Re-enable verbose output
+    output_on
+}
