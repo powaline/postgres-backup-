@@ -2248,3 +2248,53 @@ truefalse_yesno() {
         fi
     fi
 }
+
+## Function: Updates template files with provided variables
+## Usage:
+## - update_template <template_files> <variable_names...>
+## Notes:
+## - Iterates over a list of template files and replaces placeholders with variable values.
+## - Supports compatibility for placeholders in the format `{{VAR}}` to `${VAR}`.
+## - Handles user permissions for the updated template files.
+update_template() {
+    # Convert template files into a newline-separated list
+    templates=$(echo "${template_files}" | tr " " "\n")
+
+    # Shift to process variable arguments
+    shift
+
+    # Iterate over each template file
+    for template_file in $templates; do
+
+        # Check if the template file exists
+        if [[ ! -f "${template_file}" ]]; then
+            return 1
+        fi
+
+        # Gather the list of variables to replace
+        template_variables=($@)
+
+        # Determine the owner of the template file
+        template_user=$(stat -c %U "${template_file}")
+
+        # Create a temporary file for processing
+        template_tmp_file=$(mktemp)
+        cp -a "${template_file}" "${template_tmp_file}"
+
+        # Replace placeholders in the format `{{VAR}}` to `${VAR}`
+        for template_variable in "${template_variables[@]}"; do
+            sed -ri "s/[{]{2}$template_variable[}]{2}/\${$template_variable}/g" "${template_tmp_file}"
+            print_debug "[update_template] Template: '${template_file}' updating field '${template_variable}'"
+        done
+
+        # Replace placeholders with actual values and preserve file ownership
+        (
+            export "${template_variables[@]}"
+            local IFS=":"
+            sudo -HEu "${template_user}" envsubst "${template_variables[*]/#/$}" < "${template_tmp_file}" > "${template_file}"
+        )
+
+        # Remove the temporary file
+        rm -f "${template_tmp_file}"
+    done
+}
