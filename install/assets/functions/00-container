@@ -2110,3 +2110,20 @@ service_start() {
     # Create a symbolic link for the service from services.available to services.d
     ln -sf /etc/services.available/"${1}" /etc/services.d/
 }
+
+## Function: Marks a service to not start during initialization
+## Usage:
+## - service_stop <service_name>
+## Notes:
+## - Adds a "DONOTSTART" flag to the initialization file of the specified service.
+## - Useful for preventing services from being started unintentionally.
+service_stop() {
+    # Add a "DONOTSTART" flag to the service's initialization file
+    echo "DONOTSTART added by $(basename "$0")" >> /tmp/.container/"${1}"-init
+
+    # Uncomment the following lines if additional logic is needed for other services
+    # if [ "${1}" != "$(basename "$0")" ] ; then
+    #     echo "DONOTSTART added by $(basename "$0")" >> /tmp/.container/"${1}"-init
+    # fi
+    # DONOTSTART=TRUE
+}
