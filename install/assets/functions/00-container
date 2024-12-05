@@ -2076,3 +2076,26 @@ sanity_db() {
         output_on
     fi
 }
+
+## Function: Checks if a required environment variable is defined
+## Usage:
+## - sanity_var <varname> "Description"
+## Notes:
+## - Exits with an error message if the variable is not set.
+## - Provides a debug message indicating the variable being checked.
+sanity_var() {
+    # Temporarily disable verbose output
+    output_off
+
+    # Log the variable being checked
+    print_debug "Checking for existence of environment variable '$1'"
+
+    # Check if the variable is set
+    if [ -z "${!1}" ]; then
+        print_error "No '$2' entered! - Set '\$$1'"
+        exit 1
+    fi
+
+    # Re-enable verbose output
+    output_on
+}
