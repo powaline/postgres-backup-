@@ -1711,3 +1711,21 @@ print_warn() {
     # Re-enable verbose output
     output_on
 }
+
+## Function: Executes a command with optional output suppression
+## Usage:
+## - silent <command>
+## Notes:
+## - If `DEBUG_MODE` or `SHOW_OUTPUT` is enabled, the command runs normally with output.
+## - If `CONTAINER_LOG_LEVEL` is set to "debug", output is also shown.
+## - Otherwise, the command output is suppressed.
+silent() {
+    ## Check conditions to determine whether to suppress output
+    if [ "${DEBUG_MODE}" = "true" ] || [ "${SHOW_OUTPUT,,}" = "true" ] || [ "${CONTAINER_LOG_LEVEL,,}" = "debug" ]; then
+        "$@"
+    else
+        ## Redirect output and errors to /dev/null for silent execution
+        "$@" > /dev/null 2>&1
+    fi
+}
+
