@@ -1472,3 +1472,46 @@ print_debug() {
     # Re-enable verbose output
     output_on
 }
+
+## Function: Logs error-level messages with optional color and file output
+## Usage:
+## - print_error <message>
+## Notes:
+## - Logs error messages to both console and file based on environment variables.
+## - Supports colorized output for better visibility when enabled.
+## - Handles script and process-specific context with timestamps using `log_prefix`.
+print_error() {
+    # Temporarily disable verbose output
+    output_off
+
+    # Handle console logging based on CONTAINER_LOG_LEVEL
+    case "${CONTAINER_LOG_LEVEL,,}" in
+        "debug" | "notice" | "warn" | "error")
+            # Check if DEBUG_MODE is enabled
+            if [ "${DEBUG_MODE,,}" = "true" ]; then
+                # Log with or without colorization based on settings
+                if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                    echo -e "$(log_prefix)[ERROR] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+                else
+                    echo -e "$(log_prefix)${blr}[ERROR]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+                fi
+            else
+                if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                    echo -e "$(log_prefix)[ERROR] ** [${PROCESS_NAME}] $1"
+                else
+                    echo -e "$(log_prefix)${blr}[ERROR]${boff} ** [${PROCESS_NAME}] $1"
+                fi
+            fi
+        ;;
+    esac
+
+    # Handle file logging based on CONTAINER_LOG_FILE_LEVEL
+    case "${CONTAINER_LOG_FILE_LEVEL,,}" in
+        "debug" | "notice" | "warn" | "error")
+            echo -e "$(log_prefix)[ERROR] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+        ;;
+    esac
+
+    # Re-enable verbose output
+    output_on
+}
