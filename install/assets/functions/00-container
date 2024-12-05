@@ -2335,3 +2335,57 @@ transform_file_var() {
     unset file_variable
     unset variables
 }
+
+## Function: Converts boolean-like values (TRUE/FALSE) to "On/Off"
+## Usage:
+## - truefalse_onoff <varname> [format]
+##   Example: truefalse_onoff VAR uppercase
+## Notes:
+## - Converts TRUE/YES to "On" and FALSE/NO to "Off".
+## - Optionally, specifies output format: uppercase ("ON"/"OFF") or lowercase ("on"/"off").
+## - Does not require a `$` prefix for the variable name.
+truefalse_onoff() {
+    # Extract the variable's value
+    local value var
+    value=$(set | grep "^${1}=" | cut -d '=' -f2)
+    var=$(set | grep "^${1}=" | sed "s/=.*//g")
+
+    # Check if the value represents a boolean TRUE/YES
+    if [[ "${value,,}" == "true" || "${value,,}" == "yes" ]]; then
+        print_debug "Converting Variable Name '${var}' value to 'On'"
+        unset "$1"
+
+        # Handle format conversion (uppercase/lowercase)
+        if [ -n "$2" ]; then
+            case "${2,,}" in
+                "uppercase" | "upper" | "uc" )
+                    export "$1=ON"
+                ;;
+                "lowercase" | "lower" | "lc" )
+                    export "$1=on"
+                ;;
+            esac
+        else
+            export "$1=ON"
+        fi
+
+    # Check if the value represents a boolean FALSE/NO
+    elif [[ "${value,,}" == "false" || "${value,,}" == "no" ]]; then
+        print_debug "Converting Variable Name '${var}' value to 'Off'"
+        unset "$1"
+
+        # Handle format conversion (uppercase/lowercase)
+        if [ -n "$2" ]; then
+            case "${2,,}" in
+                "uppercase" | "upper" | "uc" )
+                    export "$1=OFF"
+                ;;
+                "lowercase" | "lower" | "lc" )
+                    export "$1=off"
+                ;;
+            esac
+        else
+            export "$1=OFF"
+        fi
+    fi
+}
