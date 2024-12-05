@@ -2149,3 +2149,50 @@ set_timezone() {
         print_warn "Timezone: '${TIMEZONE}' does not exist - Using '$(cat /etc/timezone)'"
     fi
 }
+
+## Function: Displays metadata and information about the current container image
+## Usage:
+## - showoff
+## Notes:
+## - Displays the image name, version, and repository URL if available.
+## - Utilizes base64-encoded and gzipped strings to display stylized messages.
+showoff() {
+    # Temporarily disable verbose output
+    output_off
+
+    # Initialize variables
+    local iv is ir
+
+    # Check if the IMAGE_NAME variable is set
+    if [ -n "${IMAGE_NAME}" ]; then
+        # Retrieve the image version
+        iv=$(get_image_version)
+
+        # Decode and concatenate stylized messages for image name
+        is="$(echo 'H4sIAAAAAAAAA/PMTUxPtVLgAgDj9n4BCAAAAA==' | base64 -d | gunzip) ${IMAGE_NAME}"
+        if [ ! -z "${iv// }" ]; then
+            # Append image version details
+            is="${is}$(echo 'H4sIAAAAAAAAA1OoUQhLLSrOzM9TUOACAAiVoSgNAAAA' | base64 -d | gunzip)${iv}$(echo 'H4sIAAAAAAAAA1MIqSxIVVDPzE1MT41PzkjMS0/NyU9XV0jLL1JISS1JzMwp5gIAZRrZYCQAAAA=' | base64 -d | gunzip)"
+        fi
+
+        # Preserve the concatenated image string
+        is="${is}"
+
+        # Check if IMAGE_REPO_URL is set and append repository details
+        if [ -n "${IMAGE_REPO_URL}" ]; then
+            ir="$(echo 'H4sIAAAAAAAAAwtKLcgvzizJL6rUd8lPLs1NzStJLMnMz7PiAgAxTVbtGgAAAA==' | base64 -d | gunzip) ${IMAGE_REPO_URL}"
+        fi
+    fi
+
+    # Display stylized messages
+    echo "H4sIAAAAAAAAA61RQRLEIAi78wpvXAq971t68CE8vgni2s7urWUGEyRBHVt7JTYzc+Ga4WD+T+Q/pm9jmQNbIZpNN9OOpGSqnA6I4jJlp1RZZ2OZUbrK3B9nxWw5VB9NiOFNCt5ta8s0kSD3suiBxOQDRh0WxSWQcbuYj9Mp4KuksKAoOVm3qlvRfq1Vl4Nj5fkvZnCsnEeFItgXAgAA" | base64 -d | gunzip
+    echo "${is}"
+    echo "${ir}"
+    echo "H4sIAAAAAAAAA/PJTE7NK061UvD1DFGoUTi0UsHIwMhEwSWxLFXBOT+vKL+SCwCc9R6MIwAAAA==" | base64 -d | gunzip
+    echo ""
+    echo "H4sIAAAAAAAAA22MsRXCMAwF+0zxB4DQ01JRMISIZdDDtowkJy/bkwG46t4Vd8+Itzik0ovRTVdJ7Nh1YKUyGDjjps2PavB+mJq0F+qOTe2DrIZFW0gbnDAlXrlor9zihJDKZcfoiYL9BGoJmSmGMYy/gz18Pu61si1CBT56VwvQSlLoWXieJvzhocfh3rJegXdE9+vlsm3bHGKcNEvMC00/MF6uwtoAAAA=" | base64 -d | gunzip
+    echo ""
+
+    # Re-enable verbose output
+    output_on
+}
