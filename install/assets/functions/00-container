@@ -2099,3 +2099,14 @@ sanity_var() {
     # Re-enable verbose output
     output_on
 }
+
+## Function: Links a service configuration for activation
+## Usage:
+## - service_start <service_name>
+## Notes:
+## - Creates a symbolic link for the specified service from `/etc/services.available/` to `/etc/services.d/`.
+## - Activates the service dynamically in the container environment.
+service_start() {
+    # Create a symbolic link for the service from services.available to services.d
+    ln -sf /etc/services.available/"${1}" /etc/services.d/
+}
