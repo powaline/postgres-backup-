@@ -1515,3 +1515,38 @@ print_error() {
     # Re-enable verbose output
     output_on
 }
+
+## Function: Logs informational messages to console and file
+## Usage:
+## - print_info <message>
+## Notes:
+## - Supports colorized and non-colorized output based on `CONTAINER_COLORIZE_OUTPUT`.
+## - Logs messages to both console and a log file (`CONTAINER_LOG_FILE_PATH`).
+## - Includes context-specific details like script name, process name, and timestamps.
+print_info() {
+    # Temporarily disable verbose output
+    output_off
+
+    # Determine logging behavior based on DEBUG_MODE and CONTAINER_COLORIZE_OUTPUT
+    if [ "${DEBUG_MODE,,}" = "true" ]; then
+        # Log with or without colorization for debug mode
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+            echo -e "$(log_prefix)[INFO] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+        else
+            echo -e "$(log_prefix)${bdg}[INFO]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+        fi
+    else
+        # Log with or without colorization for non-debug mode
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+            echo -e "$(log_prefix)[INFO] ** [${PROCESS_NAME}] $1"
+        else
+            echo -e "$(log_prefix)${bdg}[INFO]${boff} ** [${PROCESS_NAME}] $1"
+        fi
+    fi
+
+    # Append the log message to the log file
+    echo -e "$(log_prefix)[INFO] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+
+    # Re-enable verbose output
+    output_on
+}
