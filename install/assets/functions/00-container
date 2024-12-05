@@ -2127,3 +2127,25 @@ service_stop() {
     # fi
     # DONOTSTART=TRUE
 }
+
+## Function: Configures the system timezone based on the TIMEZONE environment variable
+## Usage:
+## - set_timezone <timezone>
+## Notes:
+## - Checks if the specified timezone exists in `/usr/share/zoneinfo`.
+## - Updates `/etc/localtime` and `/etc/timezone` only if the timezone is different.
+## - Logs a warning if the specified timezone does not exist.
+set_timezone() {
+    ## Verify if the specified timezone exists
+    if [ -f /usr/share/zoneinfo/"${TIMEZONE}" ]; then
+        ## Check if the timezone needs to be updated
+        if [ "${TIMEZONE}" != "$(cat /etc/timezone)" ]; then
+            print_notice "Timezone: Setting to '${TIMEZONE}' from '$(cat /etc/timezone)'"
+            cp -R /usr/share/zoneinfo/"${1}" /etc/localtime
+            echo "${1}" > /etc/timezone
+        fi
+    else
+        ## Log a warning if the timezone does not exist
+        print_warn "Timezone: '${TIMEZONE}' does not exist - Using '$(cat /etc/timezone)'"
+    fi
+}
