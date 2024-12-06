@@ -2536,3 +2536,39 @@ wait_for_port() {
     # Log success once the port is open
     print_debug "Port '${port}' on host '${host}' is now listening."
 }
+
+## Function: Waits until a specified socket file exists
+## Usage:
+## - wait_for_socket <socketname>
+## Notes:
+## - Continuously checks for the existence of a Unix domain socket.
+## - Logs retry attempts and waits 1 second between checks.
+## - Includes an optional timeout (default: 300 seconds).
+wait_for_socket() {
+    local socket="$1"
+    local timeout="${2:-300}"
+    local counter=0
+
+    # Log the socket being checked
+    print_debug "Checking for existence of socket: ${socket}"
+
+    # Loop until the socket file exists or the timeout is reached
+    while [ ! -S "${socket}" ]; do
+        sleep 1
+        (( counter += 1 ))
+
+        # Log retry message every 10 seconds
+        if (( counter % 10 == 0 )); then
+            print_warn "Socket '${socket}' not found, retrying... (elapsed: ${counter}s)"
+        fi
+
+        # Check if the timeout has been exceeded
+        if (( counter >= timeout )); then
+            print_error "Timeout reached: Socket '${socket}' does not exist after ${timeout} seconds."
+            exit 1
+        fi
+    done
+
+    # Log success once the socket file exists
+    print_debug "Socket '${socket}' is now available."
+}
