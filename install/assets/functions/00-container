@@ -2451,3 +2451,15 @@ var_nottrue() {
     # Convert the input to lowercase and check if it is not "true"
     [ "${1,,}" != "true" ]
 }
+
+## Function: Checks if a value is "true" or "yes"
+## Usage:
+## - var_true <value>
+##   Example: if var_true "$VARNAME"; then ... fi
+## Notes:
+## - Returns `true` if the input value matches "true" or "yes" (case-insensitive).
+## - Complements other boolean helper functions like `var_false`.
+var_true() {
+    # Convert the input to lowercase and check if it matches "true" or "yes"
+    [ "${1,,}" = "true" ] || [ "${1,,}" = "yes" ]
+}
