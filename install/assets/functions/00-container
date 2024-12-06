@@ -2626,3 +2626,37 @@ yesno_truefalse() {
         fi
     fi
 }
+
+## Debug Mode Configuration
+## This block configures debug mode based on the value of DEBUG_MODE.
+## Usage:
+## - Evaluates the value of DEBUG_MODE and applies appropriate logging levels or debug settings.
+## Notes:
+## - Supports enabling debug globally, for specific scripts, or for specific directories.
+case "${DEBUG_MODE,,}" in
+    "TRUE" | "true" | "YES" | "yes" | "ON" | "on" )
+        # Enable global debug mode
+        CONTAINER_LOG_LEVEL="DEBUG"
+        set -x
+    ;;
+   "FALSE" | "false" | "NO" | "no" | "OFF" | "off" )
+        # Do nothing, debug mode is disabled
+        :
+    ;;
+    * )
+        # Check if running in initialization directories
+        if [ "$(dirname "$0")" = "/var/run/s6/etc/cont-init.d" ] || [ "$(dirname "$0")" = "/etc/cont-init.d" ]; then
+            # Enable debug mode for specific scripts in these directories
+            if [ "${DEBUG_MODE}" = "$(basename "$0")" ]; then
+                print_notice "Enabling Debug mode for script: $(basename "$0")"
+                set -x
+            fi
+        fi
+
+        # Enable debug mode for the current working directory if DEBUG_MODE matches
+        if [ "${DEBUG_MODE}" = "$(basename "$PWD")" ]; then
+            print_notice "Enabling Debug mode for directory: $(basename "$PWD")"
+            set -x
+        fi
+    ;;
+esac
