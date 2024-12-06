@@ -2572,3 +2572,57 @@ wait_for_socket() {
     # Log success once the socket file exists
     print_debug "Socket '${socket}' is now available."
 }
+
+## Function: Converts "yes"/"no" to "true"/"false" with optional formatting
+## Usage:
+## - yesno_truefalse <varname> [format]
+##   Example: yesno_truefalse VAR uppercase
+## Notes:
+## - Converts "yes"/"true" to "TRUE" and "no"/"false" to "FALSE".
+## - Supports formatting options: uppercase ("TRUE"/"FALSE") or lowercase ("true"/"false").
+## - Does not require a `$` prefix for the variable name.
+yesno_truefalse() {
+    # Extract the value of the variable
+    local value var
+    value=$(set | grep "^${1}=" | cut -d '=' -f2)
+    var=$(set | grep "^${1}=" | sed "s/=.*//g")
+
+    # Check if the value is "yes" or "true"
+    if [[ "${value,,}" == "true" || "${value,,}" == "yes" ]]; then
+        print_debug "Converting variable '${var}' value to 'TRUE'"
+        unset "$1"
+
+        # Apply formatting if specified
+        if [ -n "$2" ]; then
+            case "${2,,}" in
+                "uppercase" | "upper" | "uc" )
+                    export "$1=TRUE"
+                ;;
+                "lowercase" | "lower" | "lc" )
+                    export "$1=true"
+                ;;
+            esac
+        else
+            export "$1=TRUE"
+        fi
+
+    # Check if the value is "no" or "false"
+    elif [[ "${value,,}" == "false" || "${value,,}" == "no" ]]; then
+        print_debug "Converting variable '${var}' value to 'FALSE'"
+        unset "$1"
+
+        # Apply formatting if specified
+        if [ -n "$2" ]; then
+            case "${2,,}" in
+                "uppercase" | "upper" | "uc" )
+                    export "$1=FALSE"
+                ;;
+                "lowercase" | "lower" | "lc" )
+                    export "$1=false"
+                ;;
+            esac
+        else
+            export "$1=FALSE"
+        fi
+    fi
+}
