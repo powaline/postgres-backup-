@@ -2501,3 +2501,38 @@ wait_for_file() {
     # Log success once the file is found
     print_debug "File found: $1"
 }
+
+## Function: Waits until a specified port is listening on a given host
+## Usage:
+## - wait_for_port <hostname> <port>
+## Notes:
+## - Continuously checks if the port is open on the specified host.
+## - Logs retry attempts and total elapsed time.
+## - Exits with an error message if the port is not open within a defined timeout.
+wait_for_port() {
+    local host="$1"
+    local port="$2"
+    local timeout="${3:-300}"
+    local counter=0
+
+    # Log the host and port being checked
+    print_debug "Checking for listening port on ${host}:${port}"
+
+    # Loop until the port is open or the timeout is reached
+    while ! (nc -z "${host}" "${port}"); do
+        sleep 5
+        (( counter += 5 ))
+
+        # Log warning after each retry
+        print_warn "Host '${host}' is not listening on port '${port}', retrying... (elapsed: ${counter}s)"
+
+        # Check if the timeout has been exceeded
+        if (( counter >= timeout )); then
+            print_error "Timeout reached: Port '${port}' on host '${host}' is not open after ${timeout} seconds."
+            exit 1
+        fi
+    done
+
+    # Log success once the port is open
+    print_debug "Port '${port}' on host '${host}' is now listening."
+}
