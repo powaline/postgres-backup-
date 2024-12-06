@@ -2482,3 +2482,22 @@ wait_for_directory() {
     # Log success once the directory is found
     print_debug "Directory found: $1"
 }
+
+## Function: Waits until a specified file exists
+## Usage:
+## - wait_for_file <file_path>
+## Notes:
+## - Continuously checks for the existence of the specified file.
+## - Sleeps for 1 second between each check to minimize CPU usage.
+wait_for_file() {
+    # Log the file being checked
+    print_debug "Checking for existence of file: $1"
+
+    # Loop until the file exists
+    while [ ! -f "$1" ]; do
+        sleep 1
+    done
+
+    # Log success once the file is found
+    print_debug "File found: $1"
+}
