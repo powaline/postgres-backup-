@@ -2463,3 +2463,22 @@ var_true() {
     # Convert the input to lowercase and check if it matches "true" or "yes"
     [ "${1,,}" = "true" ] || [ "${1,,}" = "yes" ]
 }
+
+## Function: Waits until a specified directory exists
+## Usage:
+## - wait_for_directory <directory_path>
+## Notes:
+## - Continuously checks for the existence of the specified directory.
+## - Sleeps for 1 second between each check to prevent excessive CPU usage.
+wait_for_directory() {
+    # Log the directory being checked
+    print_debug "Checking for existence of directory: $1"
+
+    # Loop until the directory exists
+    while [ ! -d "$1" ]; do
+        sleep 1
+    done
+
+    # Log success once the directory is found
+    print_debug "Directory found: $1"
+}
