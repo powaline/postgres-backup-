@@ -2416,3 +2416,14 @@ truefalse_onezero() {
         export "$1=0"  # Assign "0" to the variable
     fi
 }
+
+## Function: Checks if a variable evaluates to a "false-like" value
+## Usage:
+## - if var_false <var_value> ; then ... fi
+## Notes:
+## - Returns `true` if the input value is "false" or "no" (case-insensitive).
+## - Simplifies boolean checks in scripts.
+var_false() {
+    # Compare the input value with "false" or "no" (case-insensitive)
+    [[ "${1,,}" == "false" || "${1,,}" == "no" ]]
+}
