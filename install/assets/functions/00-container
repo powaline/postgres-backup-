@@ -2427,3 +2427,17 @@ var_false() {
     # Compare the input value with "false" or "no" (case-insensitive)
     [[ "${1,,}" == "false" || "${1,,}" == "no" ]]
 }
+
+## Function: Checks if a value is not "false"
+## Usage:
+## - var_notfalse <value>
+##   Example: if var_notfalse "$VARNAME"; then ... fi
+## Notes:
+## - Returns `true` if the input value is not "false" (case-insensitive).
+## - Useful for simplifying conditional logic in bash scripts.
+var_notfalse() {
+    # Convert the input to lowercase and check if it is not "false"
+    [ "${1,,}" != "false" ]
+}
+
+
