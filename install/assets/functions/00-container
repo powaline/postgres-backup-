@@ -2440,4 +2440,14 @@ var_notfalse() {
     [ "${1,,}" != "false" ]
 }
 
-
+## Function: Checks if a value is not "true"
+## Usage:
+## - var_nottrue <value>
+##   Example: if var_nottrue "$VARNAME"; then ... fi
+## Notes:
+## - Returns `true` if the input value is not "true" (case-insensitive).
+## - Complements the `var_notfalse` function for boolean logic handling.
+var_nottrue() {
+    # Convert the input to lowercase and check if it is not "true"
+    [ "${1,,}" != "true" ]
+}
