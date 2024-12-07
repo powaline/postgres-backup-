@@ -182,3 +182,25 @@ image_changelog() {
 }
 EOF
 fi
+
+# Rewrite Bash Prompt
+# Check if a custom bash prompt is defined in the container environment
+if [ -n "${CONTAINER_CUSTOM_BASH_PROMPT}" ] ; then
+    # Use the custom bash prompt defined in CONTAINER_CUSTOM_BASH_PROMPT
+    bash_prompt=${CONTAINER_CUSTOM_BASH_PROMPT}
+else
+    # If no custom bash prompt is defined, build the default one
+    # Get the image version
+    image_version=$(get_image_version)
+
+    # If the image version is not empty, append it to the prompt
+    if [ ! -z "${image_version// }" ] ; then
+        bash_ver=":${image_version}"
+    fi
+
+    # Set the bash prompt to include the image name, version, current time, and working directory
+    bash_prompt="[${IMAGE_NAME}${bash_ver} \\t \\w] $ "
+fi
+
+# Export the final bash prompt to .bashrc to make it persistent across shell sessions
+echo "export PS1=\"${bash_prompt/  /}\"" >> /root/.bashrc
