@@ -15,3 +15,22 @@ mkdir -p "${CONTAINER_LOG_FILE_PATH}"
 touch "${CONTAINER_LOG_FILE_PATH}"/"${CONTAINER_LOG_FILE_NAME}"
 echo "** Container Name: ${CONTAINER_NAME} - Commencing Logging" >> "${CONTAINER_LOG_FILE_PATH}"/"${CONTAINER_LOG_FILE_NAME}"
 create_logrotate container "${CONTAINER_LOG_FILE_PATH}"/"${CONTAINER_LOG_FILE_NAME}"
+
+# Check if the container has been restarted
+# If the /tmp/.container directory exists, it means the container has been restarted
+if [ -d "/tmp/.container" ]; then
+    # If the container has been restarted, clean up temporary files and mark as a warm restart
+    print_notice "Detected Container that has been restarted - Cleaning '/tmp/.container' files"
+    rm -rf /tmp/.container/*
+    rm -rf /etc/services.d/*
+
+    # Log warm restart information with timestamp
+    echo "$(date +%s) $(date +'%Y-%m-%d %H:%M:%S %Z') - Warm restart detected" >> /tmp/.container/container-restart
+else
+    # If this is a fresh container startup, proceed with normal initialization
+    print_debug "Cold Container startup detected - Proceeding to initialize services normally"
+    mkdir -p /tmp/.container/
+
+    # Log container startup information with timestamp
+    echo "$(date +%s) $(date +'%Y-%m-%d %H:%M:%S %Z') - Container started" >> /tmp/.container/container-startup
+fi
