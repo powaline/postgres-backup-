@@ -160,3 +160,25 @@ image_version() {
 }
 EOF
 fi
+
+# Check if the changelogname is defined
+if [ -z "${changelogname// }" ] ; then
+    # If changelogname is empty, add a default message for the image_changelog function
+    print_debug "Not adding 'changelog' command to .bashrc as I can't detect what changelog it is"
+    cat <<EOF >> /root/.bashrc
+# Function to display a default message when changelog is not found
+image_changelog() {
+    echo '** Sorry - I do not know what image this is. Check if there are changelogs in /assets/.changelogs'
+}
+EOF
+else
+    # If changelogname is valid, add the image_changelog function with changelog display logic
+    print_debug "Adding 'changelog' command to .bashrc"
+    cat <<EOF >> /root/.bashrc
+# Function to display the most recent changelog entry for the current image
+image_changelog() {
+    echo "** Showing the most recent version entry changelog for ${IMAGE_NAME} - See more at /assets/.changelogs"
+    awk '/^##/{p++} p==2{print; exit} p>=1' \$changelogname | sed '\$d'
+}
+EOF
+fi
