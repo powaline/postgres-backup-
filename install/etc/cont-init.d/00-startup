@@ -143,3 +143,20 @@ else
         fi
     fi
 fi
+
+# Check if changelogs directory exists
+if [ -d "/assets/.changelogs" ] ; then
+    # Add image_version function to .bashrc
+    cat <<EOF >> /root/.bashrc
+# Function to list all image versions from known changelogs
+image_version() {
+    # Iterate through all changelog files in /assets/.changelogs
+    for clname in /assets/.changelogs/* ; do
+        # Extract version from the first line of the changelog file
+        version=\$(head -n 1 \$clname | awk '{print \$2}')
+        # Display the image name and its version
+        echo "Image: \$(basename \$clname) \$version"
+    done
+}
+EOF
+fi
