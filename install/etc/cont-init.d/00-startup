@@ -204,3 +204,33 @@ fi
 
 # Export the final bash prompt to .bashrc to make it persistent across shell sessions
 echo "export PS1=\"${bash_prompt/  /}\"" >> /root/.bashrc
+
+# Append custom functions and aliases to the bashrc file
+cat <<EOF >> /root/.bashrc
+
+# Function to handle the 'zcat' command for various compression formats
+zcat () {
+    # Check if the file exists
+    if [ -f "\$@" ] ; then
+        # Determine the file type and call the appropriate decompression tool
+        case "\$@" in
+            *.zst* )      \$(which zstdcat) "\$@" ;;
+            *.bz*)        \$(which zcat) "\$@" ;;
+            *.gz*)        \$(which zcat) "\$@" ;;
+            *.xz)         \$(which zcat) "\$@" ;;
+        esac
+    else
+        # Print error if the file is not valid
+        echo "'\$@' is not a valid file!"
+    fi
+}
+EOF
+
+# Custom function or script for overriding host settings (need details)
+host_override
+
+# Liftoff function or initialization script (need details)
+liftoff
+
+# Enable or output related settings (need details)
+output_on
