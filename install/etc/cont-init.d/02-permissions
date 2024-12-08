@@ -8,3 +8,13 @@ output_off
 
 # Define the process name for logging context
 PROCESS_NAME="permissions"
+
+## Check legacy permission variables and map them to container-specific variables
+## This section ensures backward compatibility with legacy environment variable `ENABLE_PERMISSIONS`
+if var_true "${ENABLE_PERMISSIONS}" ; then
+    # Enable permissions management
+    CONTAINER_ENABLE_PERMISSIONS=TRUE
+elif var_false "${ENABLE_PERMISSIONS}" ; then
+    # Disable permissions management
+    CONTAINER_ENABLE_PERMISSIONS=FALSE
+fi
