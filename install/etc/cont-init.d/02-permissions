@@ -18,3 +18,9 @@ elif var_false "${ENABLE_PERMISSIONS}" ; then
     # Disable permissions management
     CONTAINER_ENABLE_PERMISSIONS=FALSE
 fi
+
+# Check if debug mode for permissions is enabled
+# If DEBUG_PERMISSIONS is set to "true", set the container log level to "DEBUG"
+if var_true "${DEBUG_PERMISSIONS}" ; then
+    CONTAINER_LOG_LEVEL="DEBUG"
+fi
