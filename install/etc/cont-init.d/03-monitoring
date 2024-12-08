@@ -11,3 +11,14 @@ prepare_service single
 
 # Define process name for logging
 PROCESS_NAME="monitoring"
+
+# Disable monitoring if `ENABLE_ZABBIX` is explicitly set to false
+if var_false "${ENABLE_ZABBIX}"; then
+    CONTAINER_ENABLE_MONITORING=FALSE
+fi
+
+# Enable monitoring and set the default backend to Zabbix if `ENABLE_ZABBIX` is set to true
+if var_true "${ENABLE_ZABBIX}"; then
+    CONTAINER_ENABLE_MONITORING=TRUE
+    CONTAINER_MONITORING_BACKEND=zabbix
+fi
