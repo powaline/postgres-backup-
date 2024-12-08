@@ -11,3 +11,15 @@ prepare_service single
 
 # Define process name for logging
 PROCESS_NAME="scheduling"
+
+# Check the status of the ENABLE_CRON environment variable
+# If ENABLE_CRON is false, disable scheduling in the container
+if var_false "${ENABLE_CRON}" ; then
+    CONTAINER_ENABLE_SCHEDULING=FALSE
+fi
+
+# If ENABLE_CRON is true, enable scheduling and set the backend to "cron"
+if var_true "${ENABLE_CRON}" ; then
+    CONTAINER_ENABLE_SCHEDULING=TRUE
+    CONTAINER_SCHEDULING_BACKEND="cron"
+fi
