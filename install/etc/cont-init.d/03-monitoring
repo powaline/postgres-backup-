@@ -1,0 +1,13 @@
+#!/command/with-contenv bash
+
+# Source the main container functions
+source /assets/functions/00-container
+
+# Disable verbose output for cleaner logs
+output_off
+
+# Prepare single service startup
+prepare_service single
+
+# Define process name for logging
+PROCESS_NAME="monitoring"
