@@ -1,0 +1,10 @@
+#!/command/with-contenv bash
+
+# Source the main container functions
+source /assets/functions/00-container
+
+# Disable verbose output for cleaner logs
+output_off
+
+# Define the process name for logging context
+PROCESS_NAME="permissions"
