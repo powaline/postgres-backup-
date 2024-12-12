@@ -1,0 +1,8 @@
+#!/command/with-contenv bash
+
+# DEBUG SETTINGS
+# --------------
+# Contains configurations for debugging features.
+
+# Enable or disable debug mode for permissions.
+DEBUG_PERMISSIONS=${DEBUG_PERMISSIONS:-"FALSE"}
