@@ -1,0 +1,11 @@
+#!/command/with-contenv bash
+
+# SCHEDULING CONFIGURATION SETTINGS
+# ---------------------------------
+# This section contains default configurations for scheduling tasks
+# and cron job logging.
+
+# Scheduling log type
+SCHEDULING_LOG_TYPE=${SCHEDULING_LOG_TYPE:-"FILE"}
+SCHEDULING_LOG_LOCATION=${SCHEDULING_LOG_LOCATION:-"/var/log/cron/"}
+SCHEDULING_LOG_LEVEL=${SCHEDULING_LOG_LEVEL:-"8"}
