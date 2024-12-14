@@ -1,0 +1,34 @@
+#!/command/with-contenv bash
+
+# Load default configurations for the container
+source /config/defaults/00-container
+
+# COLOR CONFIGURATION SETTINGS
+# -----------------------------
+# ANSI escape codes for background colors
+bdg="\e[42m"       # Dark Green Background
+bdb="\e[44m"       # Dark Blue Background
+bdm="\e[45m"       # Dark Magenta Background
+bdgy="\e[100m"     # Dark Gray Background
+blr="\e[101m"      # Light Red Background
+boff="\e[49m"      # Reset Background Color
+
+# INITIALIZATION FUNCTIONS
+# -------------------------
+# Function to check if the container initialization scripts have completed
+check_container_initialized() {
+    # Print debug message to indicate the check has started
+    print_debug "Checking to see if container initialization scripts have completed"
+
+    # Temporarily disable output to avoid unnecessary logging
+    output_off
+
+    # Loop until the initialization marker file is found
+    while [ ! -f /tmp/.container/99-container-init ]; do
+        print_debug "Waiting for container initialization to complete"
+        sleep 1
+    done
+
+    # Re-enable output once the check is complete
+    output_on
+}
