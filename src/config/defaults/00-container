@@ -1,15 +1,13 @@
 #!/command/with-contenv bash
 
-# DEFAULT CONFIGURATION SETUP
-# ---------------------------
-# This section contains default paths and global settings for the container.
-
+# CONTAINER CONFIGURATION SETTINGS
+# ---------------------------------
 # Customization-related paths and settings
 CONTAINER_CUSTOM_PATH=${CONTAINER_CUSTOM_PATH:-"/config/custom/"}
 CONTAINER_CUSTOM_SCRIPTS_PATH=${CONTAINER_CUSTOM_SCRIPTS_PATH:-"/config/custom-scripts/"}
 CONTAINER_ENABLE_CUSTOM_BASH_PROMPT=${CONTAINER_ENABLE_CUSTOM_BASH_PROMPT:-"TRUE"}
 
-# Docker secrets settings
+# Docker Secrets Configuration
 CONTAINER_ENABLE_DOCKER_SECRETS=${CONTAINER_ENABLE_DOCKER_SECRETS:-"TRUE"}
 
 # SECURITY SETTINGS
