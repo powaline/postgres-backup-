@@ -192,3 +192,24 @@ custom_files() {
         chown -R "$ownership" "$destination_path"
     fi
 }
+
+# Execute custom scripts located in a specified directory or the default custom scripts path.
+custom_scripts() {
+    # Determine the source directory for custom scripts
+    if [ -n "$1" ]; then
+        script_source="$1"
+    else
+        script_source="${CONTAINER_CUSTOM_SCRIPTS_PATH}"
+    fi
+
+    # Check if the source directory exists and is not empty
+    if [ -d "$script_source" ] && dir_notempty "$script_source"; then
+        # Iterate over all executable `.sh` files in the directory
+        for script in "$script_source"/*.sh; do
+            if [ -x "$script" ] && [ ! -d "$script" ]; then
+                print_debug "Executing custom script: '${script}'"
+                "$script"
+            fi
+        done
+    fi
+}
