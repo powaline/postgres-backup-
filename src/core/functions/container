@@ -314,3 +314,34 @@ output_on() {
         esac
     fi
 }
+
+# Print debug messages to console and log file
+print_debug() {
+    # Disable output temporarily
+    output_off
+
+    # Format debug message for console
+    if [ "${CONTAINER_LOG_LEVEL,,}" = "debug" ]; then
+        local prefix="$(log_prefix)"
+        local message="** [${PROCESS_NAME}] $1"
+
+        # Add script path to the message if DEBUG_MODE is true
+        [ "${DEBUG_MODE,,}" = "true" ] && message="$SCRIPTPATH/$(basename "$0") $message"
+
+        # Choose colorized or non-colorized output
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "true" ]; then
+            echo -e "${prefix}${bdm}[DEBUG]${boff} ${message}"
+        else
+            echo -e "${prefix}[DEBUG] ${message}"
+        fi
+    fi
+
+    # Append debug message to log file
+    if [ "${CONTAINER_LOG_FILE_LEVEL,,}" = "debug" ]; then
+        echo -e "$(log_prefix)[DEBUG] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1" >> \
+            "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+    fi
+
+    # Re-enable output
+    output_on
+}
