@@ -79,3 +79,53 @@ check_service_initialized() {
     # Re-enable output
     output_on
 }
+
+# SERVICE MANAGEMENT FUNCTIONS
+# -----------------------------
+# Prepare a service for execution
+prepare_service() {
+    # Print debug message to indicate the start of service preparation
+    print_debug "Preparing service for execution"
+
+    # If a parameter is provided, handle specific cases
+    if [ -n "$1" ]; then
+        case "$(dirname "$0")" in
+            # For container initialization scripts
+            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                set -a
+                get_defaults "$1"
+                get_functions "$1"
+                set +a
+                ;;
+            # For other contexts, handle defaults and functions based on input
+            *)
+                case "$1" in
+                    "BOTH" | "both" | "ALL" | "all")
+                        get_defaults "$2"
+                        get_functions "$2"
+                        ;;
+                    "DEFAULTS" | "defaults")
+                        get_defaults "$2"
+                        ;;
+                    "FUNCTIONS" | "functions")
+                        get_functions "$2"
+                        ;;
+                esac
+                ;;
+        esac
+    else
+        # If no parameter is provided, load defaults and functions based on context
+        case "$(dirname "$0")" in
+            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                set -a
+                get_defaults
+                get_functions
+                set +a
+                ;;
+            # Default behavior: only load defaults
+            *)
+                get_defaults
+                ;;
+        esac
+    fi
+}
