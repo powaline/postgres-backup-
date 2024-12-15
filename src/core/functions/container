@@ -15,7 +15,9 @@ boff="\e[49m"      # Reset Background Color
 
 # INITIALIZATION FUNCTIONS
 # -------------------------
-# Function to check if the container initialization scripts have completed
+# Functions to initialize container and services
+
+# Wait for container initialization to complete.
 check_container_initialized() {
     # Print debug message to indicate the check has started
     print_debug "Checking to see if container initialization scripts have completed"
@@ -33,7 +35,7 @@ check_container_initialized() {
     output_on
 }
 
-# Verify if a service or its initialization phase is complete by checking for a marker file in `/tmp/.container/`.
+# Wait for a service or its initialization phase to complete.
 check_service_initialized() {
     # Print debug message indicating the start of the service check
     print_debug "Checking if the service has been initialized"
@@ -82,7 +84,9 @@ check_service_initialized() {
 
 # SERVICE MANAGEMENT FUNCTIONS
 # -----------------------------
-# Prepare a service for execution
+# Functions for managing services
+
+# Load service-specific configurations and functions.
 prepare_service() {
     # Print debug message to indicate the start of service preparation
     print_debug "Preparing service for execution"
@@ -130,7 +134,7 @@ prepare_service() {
     fi
 }
 
-# Start a service by linking it to the services directory
+# Start a service by linking its configuration to the active services directory.
 service_start() {
     if [ -z "$1" ]; then
         print_error "Service name is required to start the service."
@@ -140,7 +144,7 @@ service_start() {
     ln -sf /etc/services.available/"${1}" /etc/services.d/
 }
 
-# Stop a service by marking it as inactive
+# Stop a service by marking it as inactive with a flag.
 service_stop() {
     # Validate input parameter
     if [ -z "$1" ]; then
