@@ -275,3 +275,34 @@ log_prefix() {
     # Re-enable output
     output_on
 }
+
+# Disable command output tracing when debug mode is enabled
+output_off() {
+    # If debug mode is enabled, disable tracing with 'set +x'
+    if [ "${DEBUG_MODE,,}" = "true" ]; then
+        set +x
+    fi
+}
+
+output_on() {
+    if [ "${DEBUG_MODE,,}" = "true" ] ; then
+        case "$(basename "$0")" in
+            0*-* | 99-* )
+                :
+            ;;
+            run )
+                case "$PWD" in
+                    */0*-* | 99-* )
+                        :
+                    ;;
+                    * )
+                        set -x
+                    ;;
+                esac
+            ;;
+            * )
+                set -x
+            ;;
+        esac
+    fi
+}
