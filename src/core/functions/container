@@ -213,3 +213,50 @@ custom_scripts() {
         done
     fi
 }
+
+# LOGGING AND OUTPUT FUNCTIONS
+# -----------------------------
+# Functions for managing logs and output
+
+# Function to create a logrotate configuration file for a specified log file.
+create_logrotate() {
+    # Ensure required parameters are provided
+    if [ -n "$1" ] && [ -n "$2" ]; then
+
+        # Skip if the logrotate configuration file already exists
+        if [ ! -f /config/logrotate/"$1" ]; then
+            print_debug "Creating Logrotate Entry for $2"
+
+            # Optional log shipping configuration
+            if [ -n "$3" ] && [ "${3,,}" != "none" ]; then
+                log_ship_entry="# logship: $3"
+            fi
+
+            # Optional user and group for logrotate execution
+            if [ -n "$4" ] && [ -n "$5" ]; then
+                logrotate_user="    su $4 $5"
+            fi
+
+            # Ensure the logrotate directory exists
+            if [ ! -d "/config/logrotate" ]; then
+                mkdir -p /config/logrotate
+            fi
+
+            # Write the logrotate configuration
+            cat <<EOF > /config/logrotate/"$1"
+${log_ship_entry}
+$2 {
+    missingok
+${logrotate_user}
+}
+EOF
+            # Set appropriate ownership and permissions
+            chown root:root /config/logrotate/"$1"
+            chmod 0644 /config/logrotate/"$1"
+        else
+            print_debug "Skipping creation of logrotate entry for $1 as it already exists."
+        fi
+    else
+        print_error "Required parameters missing. Logrotate file name and log file path are mandatory."
+    fi
+}
