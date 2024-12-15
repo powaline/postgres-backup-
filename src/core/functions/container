@@ -260,3 +260,18 @@ EOF
         print_error "Required parameters missing. Logrotate file name and log file path are mandatory."
     fi
 }
+
+# Function to format log messages with a prefix
+log_prefix() {
+    # Temporarily disable output
+    output_off
+
+    # Check if log prefixing is enabled
+    if [ "${CONTAINER_ENABLE_LOG_PREFIX,,}" = "true" ]; then
+        # Print log prefix with date and time formats
+        echo "$(date +"${CONTAINER_LOG_PREFIX_DATE_FMT}")${CONTAINER_LOG_PREFIX_SEPERATOR}$(date +"${CONTAINER_PROCESS_HELPER_TIME_FMT}") "
+    fi
+
+    # Re-enable output
+    output_on
+}
