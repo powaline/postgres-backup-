@@ -284,25 +284,33 @@ output_off() {
     fi
 }
 
+# Enable command output tracing when debug mode is enabled
 output_on() {
-    if [ "${DEBUG_MODE,,}" = "true" ] ; then
+    # Check if debug mode is enabled
+    if [ "${DEBUG_MODE,,}" = "true" ]; then
+        # Handle cases based on script name or directory context
         case "$(basename "$0")" in
             0*-* | 99-* )
+                # Skip tracing for initialization or finalization scripts
                 :
-            ;;
+                ;;
             run )
+                # For scripts named 'run', further check the directory context
                 case "$PWD" in
                     */0*-* | 99-* )
+                        # Skip tracing for certain directory contexts
                         :
-                    ;;
+                        ;;
                     * )
+                        # Enable tracing for all other cases
                         set -x
-                    ;;
+                        ;;
                 esac
-            ;;
+                ;;
             * )
+                # Enable tracing for all other scripts
                 set -x
-            ;;
+                ;;
         esac
     fi
 }
