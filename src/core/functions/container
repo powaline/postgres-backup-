@@ -139,3 +139,16 @@ service_start() {
     print_info "Starting service: $1"
     ln -sf /etc/services.available/"${1}" /etc/services.d/
 }
+
+# Stop a service by marking it as inactive
+service_stop() {
+    # Validate input parameter
+    if [ -z "$1" ]; then
+        print_error "Service name is required to stop the service."
+        return 1
+    fi
+
+    # Append a marker to indicate the service should not start
+    print_info "Stopping service: $1"
+    echo "DONOTSTART added by $(basename "$0")" >> /tmp/.container/"${1}"-init
+}
