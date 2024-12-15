@@ -129,3 +129,13 @@ prepare_service() {
         esac
     fi
 }
+
+# Start a service by linking it to the services directory
+service_start() {
+    if [ -z "$1" ]; then
+        print_error "Service name is required to start the service."
+        return 1
+    fi
+    print_info "Starting service: $1"
+    ln -sf /etc/services.available/"${1}" /etc/services.d/
+}
