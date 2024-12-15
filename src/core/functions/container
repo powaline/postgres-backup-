@@ -32,3 +32,50 @@ check_container_initialized() {
     # Re-enable output once the check is complete
     output_on
 }
+
+# Verify if a service or its initialization phase is complete by checking for a marker file in `/tmp/.container/`.
+check_service_initialized() {
+    # Print debug message indicating the start of the service check
+    print_debug "Checking if the service has been initialized"
+
+    # Temporarily disable output to avoid unnecessary log clutter
+    output_off
+
+    # Determine service suffix and bypass mode
+    if [ "$1" = "init" ]; then
+        service_suffix="-init"
+        csi_bypass=FALSE
+    else
+        service="$1"
+        csi_bypass=TRUE
+    fi
+
+    # Determine the service name if bypass mode is FALSE
+    if [ "$csi_bypass" = "FALSE" ]; then
+        if [ -z "$2" ]; then
+            # Identify the service based on the script's location or current directory
+            case "$(dirname "$0")" in
+                "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d" )
+                    service=$(basename "$0")
+                ;;
+                *)
+                    service=$(basename "$PWD")
+                ;;
+            esac
+        else
+            service=$2
+        fi
+    fi
+
+    # Wait for the marker file to appear, indicating the service has been initialized
+    while [ ! -f /tmp/.container/"${service}${service_suffix}" ]; do
+        sleep 1
+        print_debug "Looking for /tmp/.container/${service}${service_suffix}"
+    done
+
+    # Clean up temporary variables
+    unset csi_bypass
+
+    # Re-enable output
+    output_on
+}
