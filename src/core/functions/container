@@ -152,3 +152,39 @@ service_stop() {
     print_info "Stopping service: $1"
     echo "DONOTSTART added by $(basename "$0")" >> /tmp/.container/"${1}"-init
 }
+
+# CUSTOMIZATION FUNCTIONS
+# ------------------------
+# Functions to handle custom scripts and files
+
+# Copy custom files from source to destination with optional ownership change.
+custom_files() {
+    # Determine source and destination paths
+    if [ -n "$2" ]; then
+        source_path="$1"
+        destination_path="$2"
+    else
+        source_path="${CONTAINER_CUSTOM_PATH}"
+        destination_path="$1"
+    fi
+
+    # Validate and copy files if the source directory exists and is not empty
+    if [ -d "$source_path" ] && dir_notempty "$source_path"; then
+        print_debug "Custom Files: Copying files from '$source_path' to '$destination_path'"
+
+        # Ensure the destination directory exists
+        if [ ! -d "$destination_path" ]; then
+            mkdir -p "$destination_path"
+        fi
+
+        # Copy files recursively while preserving attributes
+        cp -aR "$source_path"/* "$destination_path"/
+    fi
+
+    # Handle optional user and group ownership changes
+    if [ -n "$3" ] || [ -n "$4" ]; then
+        ownership="$3"
+        [ -n "$4" ] && ownership="$3:$4"
+        chown -R "$ownership" "$destination_path"
+    fi
+}
