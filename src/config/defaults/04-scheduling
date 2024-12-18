@@ -1,0 +1,14 @@
+#!/command/with-contenv bash
+
+# -------------------------------------------------
+# Container Scheduling Configuration Script
+# -------------------------------------------------
+# This script sets up scheduling configurations for container environments.
+# It handles logging settings to ensure task scheduling is consistent and reliable.
+
+# -------------------------------
+# Scheduling Logging Configuration
+# -------------------------------
+SCHEDULING_LOG_TYPE=${SCHEDULING_LOG_TYPE:-"FILE"}
+SCHEDULING_LOG_LOCATION=${SCHEDULING_LOG_LOCATION:-"/var/log/cron/"}
+SCHEDULING_LOG_LEVEL=${SCHEDULING_LOG_LEVEL:-"8"}
