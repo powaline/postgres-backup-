@@ -9,6 +9,7 @@
 # -------------------------------
 # Scheduling Logging Configuration
 # -------------------------------
+# Configure logging settings for scheduling tasks.
 SCHEDULING_LOG_TYPE=${SCHEDULING_LOG_TYPE:-"FILE"}
 SCHEDULING_LOG_LOCATION=${SCHEDULING_LOG_LOCATION:-"/var/log/cron/"}
 SCHEDULING_LOG_LEVEL=${SCHEDULING_LOG_LEVEL:-"8"}
