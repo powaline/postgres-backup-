@@ -9,6 +9,7 @@
 # -------------------------------
 # Zabbix Logging Configuration
 # -------------------------------
+# Configure logging settings for Zabbix agent.
 ZABBIX_AGENT_LOG_FILE=${ZABBIX_AGENT_LOG_FILE:-"zabbix_agentd.log"}
 ZABBIX_AGENT_LOG_PATH=${ZABBIX_AGENT_LOG_PATH:-"/var/log/zabbix/agent/"}
 ZABBIX_LOG_FILE_SIZE=${ZABBIX_LOG_FILE_SIZE:-"0"}
@@ -18,6 +19,7 @@ ZABBIX_MAXLINES_SECOND=${ZABBIX_MAXLINES_SECOND:-"20"}
 # -------------------------------
 # Zabbix Configuration Files
 # -------------------------------
+# Set file paths for Zabbix configuration files and certificates.
 ZABBIX_CONFIG_FILE=${ZABBIX_CONFIG_FILE:-"zabbix_agentd.conf"}
 ZABBIX_CONFIG_PATH=${ZABBIX_CONFIG_PATH:-"/etc/zabbix/"}
 ZABBIX_CERT_PATH=${ZABBIX_CERT_PATH:-"/etc/zabbix/certs/"}
@@ -27,6 +29,7 @@ ZABBIX_SOCKET=${ZABBIX_SOCKET:-"/var/lib/zabbix/run/zabbix-agent.sock"}
 # -------------------------------
 # Zabbix Agent Communication
 # -------------------------------
+# Configure communication settings for Zabbix agent.
 ZABBIX_SERVER=${ZABBIX_SERVER:-"0.0.0.0/0"}
 ZABBIX_SERVER_ACTIVE=${ZABBIX_SERVER_ACTIVE:-"zabbix-proxy"}
 ZABBIX_LISTEN_IP=${ZABBIX_LISTEN_IP:-"0.0.0.0"}
@@ -36,6 +39,7 @@ ZABBIX_STATUS_PORT=${ZABBIX_STATUS_PORT:-"8050"}
 # -------------------------------
 # Zabbix Agent Settings
 # -------------------------------
+# Configure general settings for Zabbix agent.
 ZABBIX_HOSTNAME=${ZABBIX_HOSTNAME:-"${CONTAINER_NAME}"}
 ZABBIX_SETUP_TYPE=${ZABBIX_SETUP_TYPE:-"AUTO"}
 ZABBIX_START_AGENTS=${ZABBIX_START_AGENTS:-"1"}
@@ -47,6 +51,7 @@ ZABBIX_ALLOW_ROOT=${ZABBIX_ALLOW_ROOT:-"1"}
 # -------------------------------
 # Zabbix Command Permissions
 # -------------------------------
+# Configure command execution permissions for Zabbix.
 ZABBIX_REMOTECOMMANDS_ALLOW=${ZABBIX_REMOTECOMMANDS_ALLOW:-"*"}
 ZABBIX_REMOTECOMMANDS_LOG=${ZABBIX_REMOTECOMMANDS_LOG:-"1"}
 ZABBIX_USER=${ZABBIX_USER:-"zabbix"}
@@ -56,6 +61,7 @@ ZABBIX_USER_SUDO=${ZABBIX_USER_SUDO:-"TRUE"}
 # -------------------------------
 # Zabbix Auto-registration
 # -------------------------------
+# Enable auto-registration for Zabbix agent.
 ZABBIX_ENABLE_AUTOREGISTER=${ZABBIX_ENABLE_AUTOREGISTER:-"TRUE"}
 ZABBIX_ENABLE_AUTOREGISTER_DNS=${ZABBIX_ENABLE_AUTOREGISTER_DNS:-"TRUE"}
 
