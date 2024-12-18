@@ -1,0 +1,12 @@
+#!/command/with-contenv bash
+
+# -------------------------------------------------
+# Container Permissions Configuration Script
+# -------------------------------------------------
+# This script handles the default permission settings for container environments.
+# It ensures consistency in permission configuration.
+
+# --------------------------
+# Debugging Configuration
+# --------------------------
+DEBUG_PERMISSIONS=${DEBUG_PERMISSIONS:-"FALSE"}
