@@ -1,0 +1,24 @@
+#!/command/with-contenv bash
+
+# -------------------------------------------------
+# Container Core Functions Script
+# -------------------------------------------------
+# This script defines core functions for container initialization,
+# service management, and utility operations.
+
+# -------------------------------
+# Import Defaults
+# -------------------------------
+# Load default container configuration variables.
+source /src/config/defaults/00-container
+
+# -------------------------------
+# Color Configuration
+# -------------------------------
+# Define background colors for terminal outputs.
+bdg="\e[42m"       # Dark Green
+bdb="\e[44m"       # Dark Blue
+bdm="\e[45m"       # Dark Magenta
+bdgy="\e[100m"     # Dark Gray
+blr="\e[101m"      # Light Red
+boff="\e[49m"      # Reset Background Color
