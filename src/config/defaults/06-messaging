@@ -1,0 +1,30 @@
+#!/command/with-contenv bash
+
+# -------------------------------------------------
+# Container Messaging Configuration Script
+# -------------------------------------------------
+# This script configures messaging settings for container environments.
+# It handles SMTP-related configurations for outgoing emails.
+
+# -------------------------------
+# SMTP General Configuration
+# -------------------------------
+# Configure general SMTP settings for email transmission.
+SMTP_AUTO_FROM=${SMTP_AUTO_FROM:-"FALSE"}
+SMTP_DOMAIN=${SMTP_DOMAIN:-"docker"}
+SMTP_MAILDOMAIN=${SMTP_MAILDOMAIN:-"local"}
+
+# -------------------------------
+# SMTP Connection Configuration
+# -------------------------------
+# Configure SMTP server connection settings.
+SMTP_HOST=${SMTP_HOST:-"postfix-relay"}
+SMTP_PORT=${SMTP_PORT:-"25"}
+
+# -------------------------------
+# SMTP Security Configuration
+# -------------------------------
+# Configure security settings for SMTP connections.
+SMTP_STARTTLS=${SMTP_STARTTLS:-"FALSE"}
+SMTP_TLS=${SMTP_TLS:-"FALSE"}
+SMTP_TLSCERTCHECK=${SMTP_TLSCERTCHECK:-"FALSE"}
