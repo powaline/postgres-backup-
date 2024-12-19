@@ -42,3 +42,48 @@ check_container_initialized() {
     # Re-enable output after initialization is confirmed.
     output_on
 }
+
+# Check if a specific service within the container has been initialized.
+check_service_initialized() {
+    print_debug "Checking if service has been initialized"
+
+    # Disable output to avoid cluttering logs.
+    output_off
+
+    # Determine the service suffix and bypass flag based on input arguments.
+    if [ "$1" = "init" ]; then
+        service_suffix="-init"
+        csi_bypass=FALSE
+    else
+        service="$1"
+        csi_bypass=TRUE
+    fi
+
+    # Determine the service name if bypass is disabled.
+    if [ "$csi_bypass" = "FALSE" ]; then
+        if [ -z "$2" ]; then
+            case "$(dirname "$0")" in
+                "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d" )
+                    service=$(basename "$0")
+                ;;
+                *)
+                    service=$(basename "$PWD")
+                ;;
+            esac
+        else
+            service=$2
+        fi
+    fi
+
+    # Wait until the service initialization flag file is present.
+    while [ ! -f /tmp/.container/"${service}${service_suffix}" ]; do
+        print_debug "Waiting for service initialization: /tmp/.container/${service}${service_suffix}"
+        sleep 1
+    done
+
+    # Clean up temporary variables.
+    unset csi_bypass
+
+    # Re-enable output after initialization is confirmed.
+    output_on
+}
