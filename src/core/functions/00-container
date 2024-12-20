@@ -87,3 +87,80 @@ check_service_initialized() {
     # Re-enable output after initialization is confirmed.
     output_on
 }
+
+# -------------------------------------------------
+# Repository Management
+# -------------------------------------------------
+# This function clones a Git repository to a specified location
+# with optional branch/tag and directory support.
+clone_git_repo() {
+    # Disable debug mode temporarily to avoid unnecessary log clutter.
+    set +x
+    if [ "${DEBUG_MODE,,}" = "true" ]; then set -x; fi
+
+    # Check if Git is installed.
+    if ! command -v git > /dev/null; then
+        echo "[clone_git_repo] Git is not installed."
+        exit 1
+    fi
+
+    # Configure Git to use the default branch as "main".
+    git config --global init.defaultBranch main
+
+    # Validate and process input arguments.
+    if [ -n "$1" ]; then
+        local repo
+        local repo_name
+        local repo_commit
+        local repo_text=""
+        local append_git_prefix=""
+
+        # Determine repository target directory.
+        if [ -n "$3" ]; then
+            repo="$3/"
+            repo_text="to '${3}'"
+        else
+            repo="/usr/src/$(echo "${1,,}" | sed -e "s|-|_|g" -e "s|\.git||g" | awk -F/ '{print $NF}' | sed 's/[^a-zA-Z0-9_]//g')"
+        fi
+
+        # Generate a sanitized repository name.
+        repo_name="$(echo "${1,,}" | sed -e "s|-|_|g" -e "s|\.git||g" | awk -F/ '{print $NF}' | sed 's/[^a-zA-Z0-9_]//g')"
+
+        # Export environment variables for the repository.
+        export GIT_REPO_SRC="${repo}"
+        export GIT_REPO_SRC_${repo_name^^}="${repo}"
+
+        # Check if the target directory already exists.
+        if [ -d "${repo}" ]; then
+            echo "[clone_git_repo] Directory ${repo} already exists. Cannot clone."
+            exit 1
+        fi
+
+        # Append ".git" suffix if not present.
+        if [[ $1 != *".git" ]]; then
+            append_git_prefix=".git"
+        fi
+
+        # Clone the repository.
+        mkdir -p "${repo}"
+        cd "${repo}" || exit 1
+        git init .
+        git remote add origin "${1}${append_git_prefix}"
+
+        if [ -n "$2" ]; then
+            repo_commit="$2"
+        fi
+
+        echo "[clone_git_repo] Cloning Git Repo '${1}' '${repo_commit}' ${repo_text}"
+        git fetch --depth=1 origin "${repo_commit}" +refs/tags/*:refs/tags/*
+        git fetch --depth=1 origin "${repo_commit}"
+        git -c advice.detachedHead=false checkout FETCH_HEAD
+        git submodule update --init
+    else
+        echo "[clone_git_repo] No arguments provided to the function."
+        exit 1
+    fi
+
+    # Re-enable debug mode if it was initially enabled.
+    set -x
+}
