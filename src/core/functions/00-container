@@ -498,3 +498,41 @@ print_start() {
     # Re-enable output after processing
     output_on
 }
+
+# Logs warning messages to the console and/or log file based on configuration settings.
+print_warn() {
+    # Temporarily disable output to prevent unwanted clutter
+    output_off
+
+    local log_message
+    local log_message_colorized
+
+    # Prepare plain and colorized log messages
+    log_message="$(log_prefix)[WARN] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+    log_message_colorized="$(log_prefix)${bdb}[WARN]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+
+    # Log to console if the log level allows warning messages
+    if [[ "${CONTAINER_LOG_LEVEL,,}" =~ ^(debug|notice|warn)$ ]]; then
+        if [ "${DEBUG_MODE,,}" = "true" ]; then
+            if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                echo -e "${log_message}"
+            else
+                echo -e "${log_message_colorized}"
+            fi
+        else
+            if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                echo -e "$(log_prefix)[WARN] ** [${PROCESS_NAME}] $1"
+            else
+                echo -e "$(log_prefix)${bdb}[WARN]${boff} ** [${PROCESS_NAME}] $1"
+            fi
+        fi
+    fi
+
+    # Log to file if the log file level allows warning messages
+    if [[ "${CONTAINER_LOG_FILE_LEVEL,,}" =~ ^(debug|notice|warn)$ ]]; then
+        echo -e "${log_message}" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+    fi
+
+    # Re-enable output after processing
+    output_on
+}
