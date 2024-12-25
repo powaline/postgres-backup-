@@ -351,3 +351,37 @@ print_error() {
     # Re-enable output after processing
     output_on
 }
+
+# Logs informational messages to the console and/or log file.
+print_info() {
+    # Temporarily disable output to avoid unwanted log clutter
+    output_off
+
+    # Prepare log messages for plain and colorized output
+    local log_message
+    local log_message_colorized
+
+    log_message="$(log_prefix)[INFO] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+    log_message_colorized="$(log_prefix)${bdg}[INFO]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+
+    # Check if debug mode is enabled for console output
+    if [ "${DEBUG_MODE,,}" = "true" ]; then
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+            echo -e "${log_message}"
+        else
+            echo -e "${log_message_colorized}"
+        fi
+    else
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+            echo -e "$(log_prefix)[INFO] ** [${PROCESS_NAME}] $1"
+        else
+            echo -e "$(log_prefix)${bdg}[INFO]${boff} ** [${PROCESS_NAME}] $1"
+        fi
+    fi
+
+    # Always log the message into the log file
+    echo -e "${log_message}" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+
+    # Re-enable output after processing
+    output_on
+}
