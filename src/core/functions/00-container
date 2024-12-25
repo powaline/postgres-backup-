@@ -164,3 +164,41 @@ clone_git_repo() {
     # Re-enable debug mode if it was initially enabled.
     set -x
 }
+
+# Install a configuration template to a destination path.
+install_template() {
+    # Validate required arguments
+    if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+        print_error "[install_template] Missing required arguments."
+        exit 1
+    fi
+
+    # Assign arguments to local variables
+    local user="$1"
+    local source_file="$2"
+    local destination_file="$3"
+    local template_mode="${4:-0644}"
+
+    # Check if the source file exists
+    if [ ! -f "$source_file" ]; then
+        print_error "[install_template] Source file not found: $source_file"
+        exit 1
+    fi
+
+    # Create destination directory if it does not exist
+    if [ ! -d "$(dirname "$destination_file")" ]; then
+        mkdir -p "$(dirname "$destination_file")"
+    fi
+
+    # Copy the template to the destination
+    cp "$source_file" "$destination_file"
+
+    # Set file permissions
+    chmod "$template_mode" "$destination_file"
+
+    # Set file ownership
+    chown "$user" "$destination_file"
+
+    # Print success message
+    print_info "[install_template] Template installed successfully to $destination_file"
+}
