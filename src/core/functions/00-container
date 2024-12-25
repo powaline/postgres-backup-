@@ -202,3 +202,54 @@ install_template() {
     # Print success message
     print_info "[install_template] Template installed successfully to $destination_file"
 }
+
+# Updates template files by replacing placeholders with environment variable values.
+update_template() {
+    # Validate required arguments
+    if [ -z "$1" ]; then
+        print_error "[update_template] No template files provided."
+        return 1
+    fi
+
+    # Parse arguments
+    local template_files="$1"
+    shift
+    local template_variables=("$@")
+
+    # Process each template file
+    for template_file in $(echo "${template_files}" | tr " " "\n"); do
+        # Check if the template file exists
+        if [ ! -f "${template_file}" ]; then
+            print_error "[update_template] Template file not found: ${template_file}"
+            return 1
+        fi
+
+        # Gather template metadata
+        local template_user
+        template_user=$(stat -c %U "${template_file}")
+        local template_tmp_file
+        template_tmp_file=$(mktemp)
+
+        # Copy the template to a temporary file
+        cp -a "${template_file}" "${template_tmp_file}"
+
+        # Replace placeholders in the temporary template file
+        for template_variable in "${template_variables[@]}"; do
+            # Maintain compatibility: {{VAR}} -> ${VAR}
+            sed -ri "s/[{]{2}${template_variable}[}]{2}/\${${template_variable}}/g" "${template_tmp_file}"
+            print_debug "[update_template] Updating '${template_file}' with variable '${template_variable}'"
+        done
+
+        # Replace placeholders with actual variable values
+        (
+            export "${template_variables[@]}"
+            local IFS=":"
+            sudo -HEu "${template_user}" envsubst "${template_variables[*]/#/$}" < "${template_tmp_file}" > "${template_file}"
+        )
+
+        # Clean up temporary file
+        rm -f "${template_tmp_file}"
+
+        print_info "[update_template] Template updated successfully: ${template_file}"
+    done
+}
