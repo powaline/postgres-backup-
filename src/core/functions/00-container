@@ -253,3 +253,29 @@ update_template() {
         print_info "[update_template] Template updated successfully: ${template_file}"
     done
 }
+
+# -------------------------------
+# Logging and Debugging
+# -------------------------------
+# Generates a formatted log prefix with date and time.
+log_prefix() {
+    # Disable output to prevent unwanted logs during prefix generation
+    output_off
+
+    # Check if log prefix is enabled
+    if [ "${CONTAINER_ENABLE_LOG_PREFIX,,}" = "true" ]; then
+        local current_date
+        local current_time
+        local prefix_separator="${CONTAINER_LOG_PREFIX_SEPERATOR}"
+
+        # Generate formatted date and time strings
+        current_date=$(date +"${CONTAINER_LOG_PREFIX_DATE_FMT}")
+        current_time=$(date +"${CONTAINER_PROCESS_HELPER_TIME_FMT}")
+
+        # Output the log prefix
+        echo "${current_date}${prefix_separator}${current_time} "
+    fi
+
+    # Re-enable output after prefix generation
+    output_on
+}
