@@ -385,3 +385,41 @@ print_info() {
     # Re-enable output after processing
     output_on
 }
+
+# Logs notice messages to the console and/or log file based on configuration settings.
+print_notice() {
+    # Temporarily disable output to prevent unnecessary clutter in logs
+    output_off
+
+    local log_message
+    local log_message_colorized
+
+    # Prepare log messages for plain and colorized outputs
+    log_message="$(log_prefix)[NOTICE] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+    log_message_colorized="$(log_prefix)${bdgy}[NOTICE]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+
+    # Log to console if the log level is set to debug or notice
+    if [[ "${CONTAINER_LOG_LEVEL,,}" =~ ^(debug|notice)$ ]]; then
+        if [ "${DEBUG_MODE,,}" = "true" ]; then
+            if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                echo -e "${log_message}"
+            else
+                echo -e "${log_message_colorized}"
+            fi
+        else
+            if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                echo -e "$(log_prefix)[NOTICE] ** [${PROCESS_NAME}] $1"
+            else
+                echo -e "$(log_prefix)${bdgy}[NOTICE]${boff} ** [${PROCESS_NAME}] $1"
+            fi
+        fi
+    fi
+
+    # Log to file if the log level is set to debug or notice
+    if [[ "${CONTAINER_LOG_FILE_LEVEL,,}" =~ ^(debug|notice)$ ]]; then
+        echo -e "${log_message}" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+    fi
+
+    # Re-enable output after processing
+    output_on
+}
