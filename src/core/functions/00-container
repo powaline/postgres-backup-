@@ -423,3 +423,78 @@ print_notice() {
     # Re-enable output after processing
     output_on
 }
+
+# Logs service startup details, manages process counters, and handles runaway protection.
+print_start() {
+    # Disable output temporarily to prevent log clutter
+    output_off
+
+    local proc_start_count=1
+    local proc_start_wrapper=""
+    local proc_help_arg=""
+    local SHOW_OUTPUT="FALSE"
+
+    # Process Counter Handling
+    if [ "${CONTAINER_ENABLE_PROCESS_COUNTER,,}" = "true" ]; then
+        if [ -f "/tmp/.container/$(basename "$PWD")" ]; then
+            proc_start_count=$(wc -l < "/tmp/.container/$(basename "$PWD")")
+            proc_start_wrapper="[${proc_start_count}] "
+        fi
+
+        proc_help_arg="$(date +"${CONTAINER_PROCESS_HELPER_DATE_FMT}") $(date +"${CONTAINER_PROCESS_HELPER_TIME_FMT}") $(basename "$PWD") ${proc_start_count} $(cat /etc/hostname)"
+
+        # Run helper script if available
+        if [ -d "${CONTAINER_PROCESS_HELPER_PATH}" ]; then
+            if [ -f "${CONTAINER_PROCESS_HELPER_PATH}/$(basename "$0").sh" ]; then
+                exec "${CONTAINER_PROCESS_HELPER_PATH}/$(basename "$0").sh" "${proc_help_arg}"
+            elif [ -f "${CONTAINER_PROCESS_HELPER_PATH}/${CONTAINER_PROCESS_HELPER_SCRIPT}.sh" ]; then
+                exec "${CONTAINER_PROCESS_HELPER_PATH}/${CONTAINER_PROCESS_HELPER_SCRIPT}.sh" "${proc_help_arg}"
+            fi
+        fi
+
+        # Runaway Protection
+        if [ "${CONTAINER_PROCESS_RUNAWAY_PROTECTOR,,}" = "true" ]; then
+            if [ "${CONTAINER_PROCESS_RUNAWAY_SHOW_OUTPUT_FINAL,,}" = "true" ] && [ "${proc_start_count}" -eq "${CONTAINER_PROCESS_RUNAWAY_LIMIT}" ]; then
+                SHOW_OUTPUT="TRUE"
+            fi
+
+            if [ "${proc_start_count}" -gt "${CONTAINER_PROCESS_RUNAWAY_LIMIT}" ]; then
+                print_error "POTENTIAL RUNAWAY DETECTED: Disabling $(basename "$PWD") service after ${CONTAINER_PROCESS_RUNAWAY_LIMIT} restarts."
+                s6-svc -d "/var/run/s6/legacy-services/$(basename "$PWD")"
+                sleep 3
+                exit 1
+            fi
+
+            print_debug "[process_restart] - Sleeping for ${CONTAINER_PROCESS_RUNAWAY_DELAY} seconds"
+            if [ "${proc_start_count}" -gt 1 ]; then
+                sleep "${CONTAINER_PROCESS_RUNAWAY_DELAY}"
+            fi
+        fi
+    fi
+
+    # Logging Startup Information
+    local log_message
+    local log_message_colorized
+
+    log_message="$(log_prefix)[STARTING] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] ${proc_start_wrapper}$1"
+    log_message_colorized="$(log_prefix)${bdg}[STARTING]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] ${proc_start_wrapper}$1"
+
+    if [ "${DEBUG_MODE,,}" = "true" ]; then
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+            echo -e "${log_message}"
+        else
+            echo -e "${log_message_colorized}"
+        fi
+        echo -e "${log_message}" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+    else
+        if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+            echo -e "$(log_prefix)[STARTING] ** [${PROCESS_NAME}] ${proc_start_wrapper}$1"
+        else
+            echo -e "$(log_prefix)${bdg}[STARTING]${boff} ** [${PROCESS_NAME}] ${proc_start_wrapper}$1"
+        fi
+        echo -e "${log_message}" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+    fi
+
+    # Re-enable output after processing
+    output_on
+}
