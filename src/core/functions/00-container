@@ -279,3 +279,37 @@ log_prefix() {
     # Re-enable output after prefix generation
     output_on
 }
+
+# Print debug messages to the console and/or log file if enabled.
+print_debug() {
+    # Disable output temporarily to prevent unwanted clutter
+    output_off
+
+    # Check if debug logging is enabled for console output
+    if [ "${CONTAINER_LOG_LEVEL,,}" = "debug" ]; then
+        local log_message="$(log_prefix)[DEBUG] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+        local log_message_colorized="$(log_prefix)${bdm}[DEBUG]${boff} $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1"
+
+        if [ "${DEBUG_MODE,,}" = "true" ]; then
+            if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                echo -e "${log_message}"
+            else
+                echo -e "${log_message_colorized}"
+            fi
+        else
+            if [ "${CONTAINER_COLORIZE_OUTPUT,,}" = "false" ]; then
+                echo -e "$(log_prefix)[DEBUG] ** [${PROCESS_NAME}] $1"
+            else
+                echo -e "$(log_prefix)${bdm}[DEBUG]${boff} ** [${PROCESS_NAME}] $1"
+            fi
+        fi
+    fi
+
+    # Check if debug logging is enabled for log files
+    if [ "${CONTAINER_LOG_FILE_LEVEL,,}" = "debug" ]; then
+        echo -e "$(log_prefix)[DEBUG] $SCRIPTPATH/$(basename "$0") ** [${PROCESS_NAME}] $1" >> "${CONTAINER_LOG_FILE_PATH}/${CONTAINER_LOG_FILE_NAME}"
+    fi
+
+    # Re-enable output after processing
+    output_on
+}
