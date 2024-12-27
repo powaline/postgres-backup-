@@ -536,3 +536,128 @@ print_warn() {
     # Re-enable output after processing
     output_on
 }
+
+# -------------------------------
+# Utility Functions
+# -------------------------------
+# General utility functions for container management.
+# Check if a specific database type is ready for connection
+db_ready() {
+    # Disable output to avoid unnecessary log clutter
+    output_off
+
+    local db_type="${1,,}"
+    local db_host db_port db_user db_pass db_name counter=0
+    declare -A db_default_ports=(
+        ["couchdb"]=5984
+        ["influxdb"]=8088
+        ["mongodb"]=27017
+        ["mysql"]=3306
+        ["postgresql"]=5432
+        ["rabbitmq"]=5672
+        ["redis"]=6379
+        ["rethinkdb"]=28015
+    )
+
+    print_debug "Checking if Database Type '${db_type}' is ready"
+
+    # Configure host and port based on database type
+    case "${db_type}" in
+        "couch" | "couchdb")
+            db_port="${COUCHDB_PORT:-${DB_PORT:-${db_default_ports[couchdb]}}}"
+            db_host="${COUCHDB_HOST:-${DB_HOST}}"
+            ;;
+        "influx" | "influxdb")
+            db_port="${INFLUXDB_PORT:-${DB_PORT:-${db_default_ports[influxdb]}}}"
+            db_host="${INFLUXDB_HOST:-${DB_HOST}}"
+            ;;
+        "mongo" | "mongodb")
+            db_port="${MONGO_PORT:-${DB_PORT:-${db_default_ports[mongodb]}}}"
+            db_host="${MONGO_HOST:-${DB_HOST}}"
+            ;;
+        "mysql" | "mariadb")
+            if command -v "mariadb-admin" &>/dev/null; then
+                mysqladmin_bin="$(which mariadb-admin)"
+            elif command -v "mysqladmin" &>/dev/null; then
+                mysqladmin_bin="$(which mysqladmin)"
+            else
+                print_error "No MySQL or MariaDB client detected - Cannot check for Database"
+                exit 1
+            fi
+
+            # Disable SSL if necessary
+            if [ ! -f /etc/my.cnf.d/disable-ssl.cnf ]; then
+                mkdir -p /etc/my.cnf.d
+                cat <<EOF > /etc/my.cnf.d/disable-ssl.cnf
+[client]
+ssl=FALSE
+EOF
+                print_info "SSL has been disabled for MySQL/MariaDB client."
+            fi
+
+            db_port="${MYSQL_PORT:-${DB_PORT:-${db_default_ports[mysql]}}}"
+            db_host="${MYSQL_HOST:-${DB_HOST}}"
+            db_user="${MYSQL_USER:-${DB_USER}}"
+            db_pass="${MYSQL_PASS:-${DB_PASS}}"
+            ;;
+        "pgsql" | "psql" | "postgres" | "postgresql")
+            if ! command -v "pg_isready" &>/dev/null; then
+                print_error "No PostgreSQL client detected - Cannot check for Database"
+                exit 1
+            fi
+
+            db_port="${POSTGRES_PORT:-${DB_PORT:-${db_default_ports[postgresql]}}}"
+            db_host="${POSTGRES_HOST:-${DB_HOST}}"
+            db_user="${POSTGRES_USER:-${DB_USER}}"
+            db_pass="${PGPASSWORD:-${DB_PASS}}"
+            db_name="${POSTGRES_NAME:-${DB_NAME}}"
+            export PGPASSWORD="${db_pass}"
+            ;;
+        "rabbit" | "rabbitmq")
+            db_port="${RABBIT_PORT:-${DB_PORT:-${db_default_ports[rabbitmq]}}}"
+            db_host="${RABBIT_HOST:-${DB_HOST}}"
+            ;;
+        "redis")
+            db_port="${REDIS_PORT:-${DB_PORT:-${db_default_ports[redis]}}}"
+            db_host="${REDIS_HOST:-${DB_HOST}}"
+            ;;
+        "rethink" | "rethinkdb")
+            db_port="${RETHINK_PORT:-${DB_PORT:-${db_default_ports[rethinkdb]}}}"
+            db_host="${RETHINK_HOST:-${DB_HOST}}"
+            ;;
+        *)
+            print_error "Unsupported database type: ${db_type}"
+            output_on
+            return 1
+            ;;
+    esac
+
+    # Generic database connection check
+    counter=0
+    while ! (nc -z "${db_host}" "${db_port}"); do
+        sleep 5
+        ((counter += 5))
+        print_warn "Database '${db_type}' at '${db_host}:${db_port}' is not accessible, retrying... (${counter} seconds so far)"
+    done
+
+    # Specific checks for MySQL/MariaDB and PostgreSQL
+    case "${db_type}" in
+        "mysql" | "mariadb")
+            while ! ("${mysqladmin_bin}" -u"${db_user}" -P"${db_port}" -h"${db_host}" -p"${db_pass}" status &>/dev/null); do
+                sleep 5
+                ((counter += 5))
+                print_warn "MySQL/MariaDB '${db_host}:${db_port}' is not accessible, retrying... (${counter} seconds so far)"
+            done
+            ;;
+        "pgsql" | "psql" | "postgres" | "postgresql")
+            until pg_isready --dbname="${db_name}" --host="${db_host}" --port="${db_port}" --username="${db_user}" -q; do
+                sleep 5
+                ((counter += 5))
+                print_warn "PostgreSQL '${db_host}:${db_port}' is not accessible, retrying... (${counter} seconds so far)"
+            done
+            ;;
+    esac
+
+    print_info "Database '${db_type}' at '${db_host}:${db_port}' is ready."
+    output_on
+}
