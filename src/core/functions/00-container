@@ -709,3 +709,34 @@ dir_notempty() {
         return 1
     fi
 }
+
+# Reads environment variable values from a file if _FILE suffix is provided.
+file_env() {
+    # Validate if Docker Secrets feature is enabled
+    if [ "${CONTAINER_ENABLE_DOCKER_SECRETS,,}" != "true" ]; then
+        return 0
+    fi
+
+    # Define local variables
+    local var="$1"
+    local file_var="${var}_FILE"
+    local default_value="${2:-}"
+    local value="$default_value"
+
+    # Check if the file variable is set and read its content
+    if [ -n "${!file_var:-}" ] && [ -f "${!file_var}" ]; then
+        value="$(cat "${!file_var}")"
+    elif [ -n "${!var:-}" ]; then
+        value="${!var}"
+    fi
+
+    # Validate if value is still empty
+    if [ -z "${value}" ]; then
+        print_error "error: neither $var nor $file_var are set but are required"
+        exit 1
+    fi
+
+    # Export the resolved value to the environment
+    export "$var"="$value"
+    unset "$file_var"
+}
