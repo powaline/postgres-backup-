@@ -685,3 +685,27 @@ dir_empty() {
         return 1
     fi
 }
+
+# Checks if a directory is not empty, validates input, and ensures it's valid.
+dir_notempty() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[dir_notempty] Directory path is required."
+        return 1
+    fi
+
+    local dir_path="$1"
+
+    # Check if the provided path is a valid directory
+    if [ ! -d "$dir_path" ]; then
+        print_error "[dir_notempty] '$dir_path' is not a valid directory."
+        return 1
+    fi
+
+    # Check if the directory is not empty
+    if [ -n "$(find "$dir_path" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
