@@ -972,3 +972,29 @@ grant_sudo() {
     # Re-enable output
     output_on
 }
+
+# Sets the system timezone if valid, ensuring proper validation and logging.
+set_timezone() {
+    # Validate if TIMEZONE variable is set
+    if [ -z "${TIMEZONE}" ]; then
+        print_error "[set_timezone] TIMEZONE variable is not set."
+        return 1
+    fi
+
+    local current_timezone
+    current_timezone="$(cat /etc/timezone 2>/dev/null || echo "UTC")"
+
+    # Check if the specified timezone exists
+    if [ -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
+        if [ "${TIMEZONE}" != "${current_timezone}" ]; then
+            print_notice "[set_timezone] Changing timezone from '${current_timezone}' to '${TIMEZONE}'"
+            cp -f "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime
+            echo "${TIMEZONE}" > /etc/timezone
+            print_info "[set_timezone] Timezone successfully updated to '${TIMEZONE}'"
+        else
+            print_info "[set_timezone] Timezone is already set to '${TIMEZONE}'"
+        fi
+    else
+        print_warn "[set_timezone] Specified timezone '${TIMEZONE}' does not exist. Retaining current timezone '${current_timezone}'"
+    fi
+}
