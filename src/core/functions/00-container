@@ -998,3 +998,31 @@ set_timezone() {
         print_warn "[set_timezone] Specified timezone '${TIMEZONE}' does not exist. Retaining current timezone '${current_timezone}'"
     fi
 }
+
+# Converts environment variables ending with '_FILE' into their content values if they point to valid files.
+transform_file_var() {
+    # Extract and iterate through all provided variables
+    local variables
+    variables=$(echo "$@" | tr " " "\n")
+
+    for variable in $variables; do
+        local file_variable="${variable}_FILE"
+
+        # Check if a corresponding *_FILE variable exists
+        if [ -v "${file_variable}" ]; then
+            # Validate if the file exists
+            if [ ! -f "${!file_variable}" ]; then
+                print_error "[transform_file_var] ${file_variable} is set, but the file does not exist."
+                return 1
+            fi
+
+            # Replace variable value with file content
+            export "${variable}"="$(cat "${!file_variable}")"
+            print_debug "[transform_file_var] Transformed '${variable}' from file '${!file_variable}'"
+        fi
+    done
+
+    # Clean up temporary variables
+    unset file_variable
+    unset variables
+}
