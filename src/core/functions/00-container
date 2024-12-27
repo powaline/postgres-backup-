@@ -740,3 +740,98 @@ file_env() {
     export "$var"="$value"
     unset "$file_var"
 }
+
+# Load default configuration files based on the specified scope.
+get_defaults() {
+    # Validate input argument
+    local scope="$1"
+
+    # Load all default configuration files
+    if [ -n "$scope" ]; then
+        case "${scope,,}" in
+            "all")
+                for config_file in /src/config/defaults/*; do
+                    print_debug "Container: Loading defaults for '${config_file}' (ALL)"
+                    case "$(basename "${config_file}")" in
+                        0*-* | 99-*)
+                            output_off
+                            source "${config_file}"
+                            output_on
+                            ;;
+                        *)
+                            source "${config_file}"
+                            ;;
+                    esac
+                done
+                ;;
+
+            "app" | "single")
+                local config_target=""
+                case "$(dirname "$0")" in
+                    "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                        config_target="/src/config/defaults/$(basename "$0")"
+                        ;;
+                    *)
+                        config_target="/src/config/defaults/$(basename "$PWD")"
+                        ;;
+                esac
+
+                if [ -f "$config_target" ]; then
+                    print_debug "Container: Loading defaults for '$(basename "$config_target")'"
+                    case "$(basename "$config_target")" in
+                        0*-* | 99-*)
+                            output_off
+                            source "$config_target"
+                            output_on
+                            ;;
+                        *)
+                            source "$config_target"
+                            ;;
+                    esac
+                else
+                    print_debug "Container: No defaults available for '$(basename "$config_target")'"
+                fi
+                ;;
+
+            *)
+                local defaults_list
+                defaults_list=$(echo "$scope" | tr "," "\n")
+                for config_name in $defaults_list; do
+                    local config_path="/src/config/defaults/${config_name}"
+                    if [ -f "$config_path" ]; then
+                        print_debug "Container: Loading defaults for '${config_name}'"
+                        case "${config_name}" in
+                            0*-* | 99-*)
+                                output_off
+                                source "$config_path"
+                                output_on
+                                ;;
+                            *)
+                                source "$config_path"
+                                ;;
+                        esac
+                    else
+                        print_debug "Container: No defaults available for '${config_name}'"
+                    fi
+                done
+                ;;
+        esac
+    else
+        # Load defaults without specific scope
+        for config_file in /src/config/defaults/*; do
+            print_debug "Container: Loading defaults for '${config_file}'"
+            case "$(basename "${config_file}")" in
+                0*-* | 99-*)
+                    output_off
+                    source /src/config/defaults/00-container
+                    source "${config_file}"
+                    output_on
+                    ;;
+                *)
+                    source /src/config/defaults/00-container
+                    source "${config_file}"
+                    ;;
+            esac
+        done
+    fi
+}
