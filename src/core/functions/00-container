@@ -932,3 +932,43 @@ grant_doas() {
     # Re-enable output
     output_on
 }
+
+# Grants 'sudo' privileges to a specified user with optional command restrictions.
+grant_sudo() {
+    # Temporarily disable output to avoid unnecessary logs
+    output_off
+
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[grant_sudo] User is required."
+        output_on
+        return 1
+    fi
+
+    local user="$1"
+    local sudo_command="ALL"
+
+    # If a specific command is provided, set sudo_command
+    if [ -n "$2" ]; then
+        sudo_command="$2"
+        print_debug "Adding 'sudo' privileges to user '$user' for command '$sudo_command'"
+    else
+        print_debug "Adding 'sudo' privileges to user '$user' for all commands"
+    fi
+
+    # Append sudo configuration to /etc/sudoers
+    echo "%$user ALL=(ALL) NOPASSWD:${sudo_command}" >> /etc/sudoers
+
+    # Validate sudoers file syntax
+    if ! visudo -c >/dev/null 2>&1; then
+        print_error "[grant_sudo] Invalid syntax in /etc/sudoers file. Reverting changes."
+        sed -i "\|%$user ALL=(ALL) NOPASSWD:${sudo_command}|d" /etc/sudoers
+        output_on
+        return 1
+    fi
+
+    print_info "'sudo' privileges successfully added for user: '$user'"
+
+    # Re-enable output
+    output_on
+}
