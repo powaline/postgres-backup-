@@ -661,3 +661,27 @@ EOF
     print_info "Database '${db_type}' at '${db_host}:${db_port}' is ready."
     output_on
 }
+
+# Checks if a given directory is empty and returns 0 if empty, 1 if not.
+dir_empty() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[dir_empty] Directory path is required."
+        return 1
+    fi
+
+    local dir_path="$1"
+
+    # Check if the provided path is a valid directory
+    if [ ! -d "$dir_path" ]; then
+        print_error "[dir_empty] '$dir_path' is not a valid directory."
+        return 1
+    fi
+
+    # Check if the directory is empty
+    if [ -z "$(find "$dir_path" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
