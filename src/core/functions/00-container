@@ -835,3 +835,64 @@ get_defaults() {
         done
     fi
 }
+
+# Load function files based on a specified scope or load all if no scope is provided.
+get_functions() {
+    # Validate input argument
+    local scope="$1"
+
+    # Load all function files except '00-container'
+    if [ -n "$scope" ]; then
+        case "${scope,,}" in
+            "all")
+                for func_file in /src/core/functions/*; do
+                    if [ "$func_file" != "/src/core/functions/00-container" ]; then
+                        print_debug "Container: Loading functions from '${func_file}' (ALL)"
+                        source "${func_file}"
+                    fi
+                done
+                ;;
+
+            "app" | "single")
+                local func_target=""
+                case "$(dirname "$0")" in
+                    "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                        func_target="/src/core/functions/$(basename "$0")"
+                        ;;
+                    *)
+                        func_target="/src/core/functions/$(basename "$PWD")"
+                        ;;
+                esac
+
+                if [ -f "$func_target" ]; then
+                    print_debug "Container: Loading functions from '$(basename "$func_target")'"
+                    source "$func_target"
+                else
+                    print_debug "Container: No functions available for '$(basename "$func_target")'"
+                fi
+                ;;
+
+            *)
+                local function_list
+                function_list=$(echo "$scope" | tr "," "\n")
+                for func_name in $function_list; do
+                    local func_path="/src/core/functions/${func_name}"
+                    if [ -f "$func_path" ]; then
+                        print_debug "Container: Loading functions from '${func_name}'"
+                        source "$func_path"
+                    else
+                        print_debug "Container: No functions available for '${func_name}'"
+                    fi
+                done
+                ;;
+        esac
+    else
+        # Load all function files by default
+        for func_file in /src/core/functions/*; do
+            if [ "$func_file" != "/src/core/functions/00-container" ]; then
+                print_debug "Container: Loading functions from '${func_file}'"
+                source "${func_file}"
+            fi
+        done
+    fi
+}
