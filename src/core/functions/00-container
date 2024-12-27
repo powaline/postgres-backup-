@@ -896,3 +896,39 @@ get_functions() {
         done
     fi
 }
+
+# Grants 'doas' privileges to a specified user for specific commands.
+grant_doas() {
+    # Temporarily disable output to prevent unwanted logs
+    output_off
+
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[grant_doas] User is required."
+        output_on
+        return 1
+    fi
+
+    local user="$1"
+    local doas_command=""
+
+    print_debug "Adding 'doas' privileges to user: '$user'"
+
+    # Check if a specific command is provided
+    if [ -n "$2" ]; then
+        doas_command="cmd $2"
+        print_debug "Adding 'doas' privileges for command: '$2'"
+    fi
+
+    # Append configuration to doas.conf
+    echo "permit nopass $user ${doas_command} as root" >> /etc/doas.conf
+
+    # Ensure correct file ownership and permissions
+    chown root:root /etc/doas.conf
+    chmod 0400 /etc/doas.conf
+
+    print_info "'doas' privileges successfully added for user: '$user'"
+
+    # Re-enable output
+    output_on
+}
