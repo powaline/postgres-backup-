@@ -88,6 +88,42 @@ check_service_initialized() {
     output_on
 }
 
+# Ensures proper container initialization state by logging status.
+liftoff() {
+    # Temporarily disable output to avoid clutter.
+    output_off
+
+    # Ensure the temporary container state directory exists.
+    local state_dir="/tmp/.container"
+    mkdir -p "${state_dir}"
+
+    # Determine if DONOTSTART prefix should be applied.
+    local liftoff_prefix=""
+    if [ "${DONOTSTART}" = "TRUE" ]; then
+        liftoff_prefix="DONOTSTART "
+    fi
+
+    # Handle initialization based on the script's directory.
+    local init_file=""
+    case "$(dirname "$0")" in
+        "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+            init_file="${state_dir}/$(basename "$0")-init"
+            echo "${liftoff_prefix}$(basename "$0")-init initialized on $(log_prefix)" >> "${init_file}"
+            ;;
+        *)
+            init_file="${state_dir}/$(basename "$PWD")"
+            if [ ! -f "${init_file}" ]; then
+                echo "$(basename "$PWD") initialized on $(log_prefix)" >> "${init_file}"
+            else
+                echo "$(basename "$PWD") reinitialized on $(log_prefix)" >> "${init_file}"
+            fi
+            ;;
+    esac
+
+    # Re-enable output.
+    output_on
+}
+
 # -------------------------------------------------
 # Repository Management
 # -------------------------------------------------
