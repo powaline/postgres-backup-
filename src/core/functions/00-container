@@ -1157,3 +1157,25 @@ wait_for_directory() {
 
     print_info "[wait_for_directory] Directory '${dir_path}' now exists."
 }
+
+# Waits until a specified file exists before continuing execution.
+wait_for_file() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[wait_for_file] File path is required."
+        return 1
+    fi
+
+    local file_path="$1"
+    local retry_interval=1  # Time interval between retries in seconds
+
+    print_debug "[wait_for_file] Waiting for file: '${file_path}'"
+
+    # Wait until the file exists
+    while [ ! -f "${file_path}" ]; do
+        sleep "${retry_interval}"
+        print_debug "[wait_for_file] File '${file_path}' not found. Retrying in ${retry_interval}s..."
+    done
+
+    print_info "[wait_for_file] File '${file_path}' now exists."
+}
