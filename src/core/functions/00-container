@@ -1179,3 +1179,35 @@ wait_for_file() {
 
     print_info "[wait_for_file] File '${file_path}' now exists."
 }
+
+# Waits until a host and port are available for connection.
+wait_for_port() {
+    # Validate input arguments
+    if [ -z "$1" ] || [ -z "$2" ]; then
+        print_error "[wait_for_port] Host and port are required."
+        return 1
+    fi
+
+    local host="$1"
+    local port="$2"
+    local retry_interval=5   # Time interval between retries in seconds
+    local timeout=300        # Maximum wait time in seconds
+    local counter=0
+
+    print_debug "[wait_for_port] Waiting for '${host}:${port}' to become available."
+
+    # Loop until the port is open or timeout is reached
+    while ! (nc -z "${host}" "${port}"); do
+        sleep "${retry_interval}"
+        ((counter += retry_interval))
+
+        print_warn "[wait_for_port] Host '${host}' is not listening on port '${port}', retrying... (${counter}s elapsed)"
+
+        if [ "${counter}" -ge "${timeout}" ]; then
+            print_error "[wait_for_port] Timeout reached. Host '${host}' did not open port '${port}'."
+            return 1
+        fi
+    done
+
+    print_info "[wait_for_port] Host '${host}' is now listening on port '${port}'."
+}
