@@ -1378,3 +1378,32 @@ package() {
 
     output_on
 }
+
+# Toggles debug mode based on DEBUG_MODE, supporting various valid values.
+case "${DEBUG_MODE,,}" in
+    "true" | "yes" | "on")
+        # Enable global debug mode
+        CONTAINER_LOG_LEVEL="DEBUG"
+        set -x
+        print_debug "Debug mode enabled globally."
+        ;;
+    "false" | "no" | "off")
+        # Disable global debug mode
+        print_debug "Debug mode disabled globally."
+        ;;
+    *)
+        # Enable debug mode based on script directory
+        if [[ "$(dirname "$0")" == "/var/run/s6/etc/cont-init.d" || "$(dirname "$0")" == "/etc/cont-init.d" ]]; then
+            if [[ "${DEBUG_MODE}" == "$(basename "$0")" ]]; then
+                print_notice "Enabling Debug mode for script: $(basename "$0")"
+                set -x
+            fi
+        fi
+
+        # Enable debug mode based on current working directory
+        if [[ "${DEBUG_MODE}" == "$(basename "$PWD")" ]]; then
+            print_notice "Enabling Debug mode for directory: $(basename "$PWD")"
+            set -x
+        fi
+        ;;
+esac
