@@ -1211,3 +1211,34 @@ wait_for_port() {
 
     print_info "[wait_for_port] Host '${host}' is now listening on port '${port}'."
 }
+
+# Waits until a specified Unix socket file exists before proceeding.
+wait_for_socket() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[wait_for_socket] Socket path is required."
+        return 1
+    fi
+
+    local socket_path="$1"
+    local retry_interval=1  # Time interval between retries in seconds
+    local timeout=300       # Maximum wait time in seconds
+    local counter=0
+
+    print_debug "[wait_for_socket] Waiting for socket: '${socket_path}'"
+
+    # Loop until the socket exists or timeout is reached
+    while [ ! -S "${socket_path}" ]; do
+        sleep "${retry_interval}"
+        ((counter += retry_interval))
+
+        print_warn "[wait_for_socket] Socket '${socket_path}' not found. Retrying... (${counter}s elapsed)"
+
+        if [ "${counter}" -ge "${timeout}" ]; then
+            print_error "[wait_for_socket] Timeout reached. Socket '${socket_path}' is still unavailable."
+            return 1
+        fi
+    done
+
+    print_info "[wait_for_socket] Socket '${socket_path}' is now available."
+}
