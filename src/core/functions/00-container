@@ -1078,3 +1078,33 @@ prepare_service() {
         esac
     fi
 }
+
+# Enables a specified service by creating a symbolic link in /etc/services.d.
+service_start() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[service_start] Service name is required."
+        return 1
+    fi
+
+    local service_name="$1"
+    local available_service_path="/etc/services.available/${service_name}"
+    local enabled_service_path="/etc/services.d/${service_name}"
+
+    # Check if the service exists in available services
+    if [ ! -e "$available_service_path" ]; then
+        print_error "[service_start] Service '${service_name}' does not exist in /etc/services.available."
+        return 1
+    fi
+
+    # Create symbolic link to enable the service
+    ln -sf "$available_service_path" "$enabled_service_path"
+
+    # Verify if the symbolic link was successfully created
+    if [ -L "$enabled_service_path" ]; then
+        print_info "[service_start] Service '${service_name}' successfully started."
+    else
+        print_error "[service_start] Failed to start service '${service_name}'."
+        return 1
+    fi
+}
