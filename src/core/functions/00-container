@@ -1137,6 +1137,49 @@ custom_scripts() {
     fi
 }
 
+# Retrieves the image version from changelog files based on IMAGE_NAME or IMAGE_REPO_URL.
+get_image_version() {
+    # Temporarily disable output to prevent unnecessary logging
+    output_off
+
+    # Validate if IMAGE_NAME is set
+    if [ -n "${IMAGE_NAME}" ]; then
+        local image_version=""
+        local changelog_paths=(
+            "/assets/.changelogs/${IMAGE_NAME/\//_}.md"
+            "/assets/.changelogs/docker-${IMAGE_NAME/\//_}.md"
+            "/assets/.changelogs/focela_docker-${IMAGE_NAME/\//_}.md"
+        )
+
+        # Iterate over possible changelog paths to find the version
+        for changelog in "${changelog_paths[@]}"; do
+            if [ -f "${changelog}" ]; then
+                image_version=$(head -n1 "${changelog}" | awk '{print $2}')
+                break
+            fi
+        done
+
+        # If no version is found, attempt to retrieve from IMAGE_REPO_URL
+        if [ -z "${image_version}" ] && [ -n "${IMAGE_REPO_URL}" ]; then
+            local repo_changelog_path
+            repo_changelog_path=$(echo "${IMAGE_REPO_URL%/}" | sed "s#https://github.com/##g")
+            local repo_changelog="/assets/.changelogs/${repo_changelog_path/\//_}.md"
+
+            if [ -f "${repo_changelog}" ]; then
+                image_version=$(head -n1 "${repo_changelog}" | awk '{print $2}')
+            fi
+        fi
+
+        # Print the image version if retrieved
+        if [ -n "${image_version}" ]; then
+            echo "${image_version}"
+        fi
+    fi
+
+    # Re-enable output
+    output_on
+}
+
 # -------------------------------
 # Service Management
 # -------------------------------
