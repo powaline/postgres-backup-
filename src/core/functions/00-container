@@ -1049,6 +1049,40 @@ set_timezone() {
     fi
 }
 
+# Dynamically updates /etc/hosts with IP and domain mappings from environment variables.
+host_override() {
+    # Get the number of host overrides defined in environment variables
+    local host_count
+    host_count=$(printenv | sort | grep -cE '^CONTAINER_HOST_OVERRIDE_([0-9]+)')
+
+    # Loop through each host override entry
+    for (( i = 1; i <= host_count; i++ )); do
+        local host_index
+        host_index=$(printf "%02d" "$i") # Format index to two digits
+
+        local host_variable="CONTAINER_HOST_OVERRIDE_${host_index}"
+        local host_entry="${!host_variable}" # Retrieve variable value dynamically
+
+        # Extract the IP address and domains from the variable
+        local host_ip
+        host_ip=$(echo "${host_entry}" | awk '{print $1}')
+
+        # If the host IP is not in valid IPv4 format, resolve it using `getent`
+        if [[ ! "${host_ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            host_ip=$(getent ahostsv4 "${host_ip}" | grep -m 1 STREAM | awk '{print $1}')
+        fi
+
+        # Append the entry to /etc/hosts
+        if [ -n "${host_ip}" ]; then
+            echo "# Added automatically by ${host_variable}" >> /etc/hosts
+            echo "${host_ip} $(echo "${host_entry}" | cut -d' ' -f2-)" >> /etc/hosts
+            print_info "[host_override] Added entry: ${host_ip} $(echo "${host_entry}" | cut -d' ' -f2-)"
+        else
+            print_warn "[host_override] Unable to resolve IP for ${host_variable}"
+        fi
+    done
+}
+
 # Converts environment variables ending with '_FILE' into their content values if they point to valid files.
 transform_file_var() {
     # Extract and iterate through all provided variables
