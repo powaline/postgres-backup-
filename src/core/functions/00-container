@@ -1077,6 +1077,45 @@ transform_file_var() {
     unset variables
 }
 
+# Creates a Zabbix configuration file for a specific service with optional autoregister settings.
+create_zabbix() {
+    # Validate required arguments
+    if [ -z "$1" ]; then
+        print_error "[create_zabbix] Service name is required."
+        return 1
+    fi
+
+    # Parse autoregister argument
+    local service_name="$1"
+    local autoregister="${2:-$1}"
+
+    print_debug "[create_zabbix] Adding Zabbix Auto Register configuration for '${service_name}'"
+
+    # Check if monitoring is enabled and backend is Zabbix
+    if var_true "${CONTAINER_ENABLE_MONITORING}" && [ "${CONTAINER_MONITORING_BACKEND,,}" = "zabbix" ]; then
+        if [ -z "${ZABBIX_CONFIG_PATH}" ] || [ -z "${ZABBIX_CONFIG_FILE}" ]; then
+            print_error "[create_zabbix] Zabbix configuration path or file is not set."
+            return 1
+        fi
+
+        # Source Zabbix defaults
+        source /src/config/defaults/03-monitoring
+
+        # Ensure the configuration directory exists
+        mkdir -p "${ZABBIX_CONFIG_PATH}/${ZABBIX_CONFIG_FILE}.d"
+
+        # Create Zabbix configuration file
+        cat <<EOF > "${ZABBIX_CONFIG_PATH}/${ZABBIX_CONFIG_FILE}.d/focela_${service_name}.conf"
+# Zabbix ${service_name} Configuration - Automatically Generated
+# Autoregister=${autoregister}
+EOF
+
+        print_info "[create_zabbix] Zabbix configuration for '${service_name}' created successfully."
+    else
+        print_warn "[create_zabbix] Monitoring is disabled or backend is not Zabbix. Skipping configuration."
+    fi
+}
+
 # -------------------------------
 # Service Management
 # -------------------------------
