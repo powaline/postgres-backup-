@@ -1131,3 +1131,29 @@ service_stop() {
         return 1
     fi
 }
+
+# -------------------------------
+# Service Management
+# -------------------------------
+# FUNCTIONS TO MANAGE SERVICES IN THE CONTAINER.
+# Waits until a specified directory exists before proceeding.
+wait_for_directory() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[wait_for_directory] Directory path is required."
+        return 1
+    fi
+
+    local dir_path="$1"
+    local retry_interval=1  # Time interval between retries in seconds
+
+    print_debug "[wait_for_directory] Waiting for directory: '${dir_path}'"
+
+    # Loop until the directory exists
+    while [ ! -d "${dir_path}" ]; do
+        sleep "${retry_interval}"
+        print_debug "[wait_for_directory] Directory '${dir_path}' not found. Retrying in ${retry_interval}s..."
+    done
+
+    print_info "[wait_for_directory] Directory '${dir_path}' now exists."
+}
