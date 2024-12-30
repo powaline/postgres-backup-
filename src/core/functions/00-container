@@ -1026,3 +1026,55 @@ transform_file_var() {
     unset file_variable
     unset variables
 }
+
+# -------------------------------
+# Service Management
+# -------------------------------
+# FUNCTIONS TO MANAGE SERVICES IN THE CONTAINER.
+# Loads default configurations and functions for a service based on the specified mode and context.
+prepare_service() {
+    # Validate if a parameter is provided
+    if [ -n "$1" ]; then
+        case "$(dirname "$0")" in
+            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                # Load defaults and functions in the init directory context
+                set -a
+                get_defaults "$1"
+                get_functions "$1"
+                set +a
+                ;;
+            *)
+                # Handle different modes for loading defaults and functions
+                case "${1,,}" in
+                    "BOTH" | "both" | "ALL" | "all")
+                        get_defaults "$2"
+                        get_functions "$2"
+                        ;;
+                    "DEFAULTS" | "defaults")
+                        get_defaults "$2"
+                        ;;
+                    "FUNCTIONS" | "functions")
+                        get_functions "$2"
+                        ;;
+                    *)
+                        print_error "[prepare_service] Invalid mode: '$1'"
+                        return 1
+                        ;;
+                esac
+                ;;
+        esac
+    else
+        # Default behavior if no parameter is provided
+        case "$(dirname "$0")" in
+            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                set -a
+                get_defaults
+                get_functions
+                set +a
+                ;;
+            *)
+                get_defaults
+                ;;
+        esac
+    fi
+}
