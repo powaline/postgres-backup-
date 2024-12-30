@@ -1108,3 +1108,26 @@ service_start() {
         return 1
     fi
 }
+
+# Prevents a specified service from starting by marking it with a 'DONOTSTART' flag.
+service_stop() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[service_stop] Service name is required."
+        return 1
+    fi
+
+    local service_name="$1"
+    local service_flag_file="/tmp/.container/${service_name}-init"
+
+    # Add 'DONOTSTART' marker to prevent the service from starting
+    echo "DONOTSTART added by $(basename "$0")" >> "$service_flag_file"
+
+    # Verify if the flag was successfully added
+    if grep -q "DONOTSTART" "$service_flag_file"; then
+        print_info "[service_stop] Service '${service_name}' has been marked with 'DONOTSTART'."
+    else
+        print_error "[service_stop] Failed to mark service '${service_name}' with 'DONOTSTART'."
+        return 1
+    fi
+}
