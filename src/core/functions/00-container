@@ -1116,6 +1116,27 @@ EOF
     fi
 }
 
+# Runs executable custom scripts from a given or default directory.
+custom_scripts() {
+    # Define the source directory for custom scripts
+    local script_source="${1:-${CONTAINER_CUSTOM_SCRIPTS_PATH}}"
+
+    # Validate if the directory exists and is not empty
+    if [ -d "${script_source}" ] && dir_notempty "${script_source}"; then
+        print_debug "[custom_scripts] Executing scripts from '${script_source}'"
+
+        # Iterate through all shell scripts in the directory
+        for script in "${script_source}"/*.sh; do
+            if [ -x "${script}" ] && [ ! -d "${script}" ]; then
+                print_debug "[custom_scripts] Executing script: '${script}'"
+                "${script}"
+            fi
+        done
+    else
+        print_warn "[custom_scripts] No valid scripts found in '${script_source}'"
+    fi
+}
+
 # -------------------------------
 # Service Management
 # -------------------------------
