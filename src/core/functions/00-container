@@ -537,6 +537,56 @@ print_warn() {
     output_on
 }
 
+# Creates a logrotate configuration file for a specified log file with optional settings.
+create_logrotate() {
+    # Validate required arguments
+    if [ -z "$1" ] || [ -z "$2" ]; then
+        print_error "[create_logrotate] Logrotate name and log file path are required."
+        return 1
+    fi
+
+    local config_name="$1"
+    local log_path="$2"
+    local logship_parser=""
+    local user_config=""
+
+    # Check if logrotate configuration already exists
+    if [ -f "/assets/logrotate/${config_name}" ]; then
+        print_debug "[create_logrotate] Logrotate entry '${config_name}' already exists. Skipping creation."
+        return 0
+    fi
+
+    print_debug "[create_logrotate] Creating Logrotate Entry for '${log_path}'"
+
+    # Parse optional third argument for logship configuration
+    if [ -n "$3" ] && [ "${3,,}" != "none" ]; then
+        logship_parser="# logship: $3"
+    fi
+
+    # Parse optional user and group for 'su' directive
+    if [ -n "$4" ] && [ -n "$5" ]; then
+        user_config="    su $4 $5"
+    fi
+
+    # Ensure the logrotate directory exists
+    mkdir -p /assets/logrotate
+
+    # Create logrotate configuration file
+    cat <<EOF > "/assets/logrotate/${config_name}"
+${logship_parser}
+${log_path} {
+    missingok
+${user_config}
+}
+EOF
+
+    # Set appropriate file permissions
+    chown root:root "/assets/logrotate/${config_name}"
+    chmod 0644 "/assets/logrotate/${config_name}"
+
+    print_info "[create_logrotate] Logrotate entry '${config_name}' created successfully."
+}
+
 # -------------------------------
 # Utility Functions
 # -------------------------------
