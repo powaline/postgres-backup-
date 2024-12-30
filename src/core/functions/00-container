@@ -1242,3 +1242,139 @@ wait_for_socket() {
 
     print_info "[wait_for_socket] Socket '${socket_path}' is now available."
 }
+
+# -------------------------------
+# Package Management
+# -------------------------------
+# FUNCTIONS TO MANAGE PACKAGES.
+# Manages package operations (install, remove, update, upgrade, cleanup) across Alpine, Debian, and Ubuntu systems.
+package() {
+    # Cleanup function to remove cache and temporary files.
+    cleanup() {
+        case "${distro}" in
+            "alpine")
+                rm -rf /root/.gitconfig
+                rm -rf /var/cache/apk/*
+                ;;
+            "debian" | "ubuntu")
+                apt-get clean -y
+                rm -rf /root/.gitconfig
+                rm -rf /var/lib/apt/lists/*
+                ;;
+            *)
+                print_error "[package:cleanup] Unsupported distribution: '${distro}'"
+                return 1
+                ;;
+        esac
+    }
+
+    # Install function to add packages.
+    install() {
+        local dependencies=""
+        case "${distro}" in
+            "alpine")
+                if [[ "${1}" =~ ^\..* ]]; then
+                    dependencies="-t"
+                fi
+                apk add ${dependencies} "$@"
+                ;;
+            "debian" | "ubuntu")
+                if [[ "${1}" =~ ^\..* ]]; then
+                    shift
+                fi
+                apt-get install -y --no-install-recommends "$@"
+                ;;
+            *)
+                print_error "[package:install] Unsupported distribution: '${distro}'"
+                return 1
+                ;;
+        esac
+    }
+
+    # Remove function to uninstall packages.
+    remove() {
+        case "${distro}" in
+            "alpine")
+                apk del "$@"
+                ;;
+            "debian" | "ubuntu")
+                local packages="$@"
+                if [[ "${packages}" =~ \..* ]]; then
+                    packages=$(echo "${packages}" | sed "s|\..* ||g")
+                fi
+                apt-get purge -y ${packages}
+                apt-get autoremove -y
+                ;;
+            *)
+                print_error "[package:remove] Unsupported distribution: '${distro}'"
+                return 1
+                ;;
+        esac
+    }
+
+    # Update function to refresh package lists.
+    update() {
+        case "${distro}" in
+            "alpine")
+                apk update
+                ;;
+            "debian" | "ubuntu")
+                apt-get update
+                ;;
+            *)
+                print_error "[package:update] Unsupported distribution: '${distro}'"
+                return 1
+                ;;
+        esac
+    }
+
+    # Upgrade function to update installed packages.
+    upgrade() {
+        case "${distro}" in
+            "alpine")
+                apk upgrade
+                ;;
+            "debian" | "ubuntu")
+                apt-get upgrade -y
+                ;;
+            *)
+                print_error "[package:upgrade] Unsupported distribution: '${distro}'"
+                return 1
+                ;;
+        esac
+    }
+
+    # Main execution flow.
+    output_off
+
+    local distro
+    distro=$(grep ^ID= /etc/os-release | cut -d = -f2)
+    local action="${1}"
+    shift
+    local arguments=("$@")
+
+    if [ -z "${distro}" ]; then
+        print_error "[package] Unable to determine distribution."
+        output_on
+        return 1
+    fi
+
+    case "${action}" in
+        add | install)
+            install "${arguments[@]}"
+            ;;
+        delete | remove | uninstall)
+            remove "${arguments[@]}"
+            ;;
+        cleanup | update | upgrade)
+            "${action}"
+            ;;
+        *)
+            print_error "[package] Unsupported action: '${action}'"
+            output_on
+            return 1
+            ;;
+    esac
+
+    output_on
+}
