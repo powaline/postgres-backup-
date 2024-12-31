@@ -1,19 +1,19 @@
 #!/command/with-contenv bash
 
 # -------------------------------------------------
-# Container Core Functions Script
+# CONTAINER CORE FUNCTIONS SCRIPT
 # -------------------------------------------------
 # This script defines core functions for container initialization,
 # service management, and utility operations.
 
 # -------------------------------
-# Import Defaults
+# IMPORT DEFAULTS
 # -------------------------------
 # Load default container configuration variables.
 source /src/config/defaults/00-container
 
 # -------------------------------
-# Color Configuration
+# COLOR CONFIGURATION
 # -------------------------------
 # Define background colors for terminal outputs.
 bdg="\e[42m"       # Dark Green
@@ -24,9 +24,10 @@ blr="\e[101m"      # Light Red
 boff="\e[49m"      # Reset Background Color
 
 # -------------------------------
-# Initialization Checks
+# INITIALIZATION CHECKS
 # -------------------------------
-# Check if the container initialization scripts have completed.
+# Functions to check initialization status.
+# Verifies if container initialization scripts have completed by checking for a flag file.
 check_container_initialized() {
     print_debug "Checking if container initialization scripts have completed"
 
@@ -124,11 +125,11 @@ liftoff() {
     output_on
 }
 
-# -------------------------------------------------
-# Repository Management
-# -------------------------------------------------
-# This function clones a Git repository to a specified location
-# with optional branch/tag and directory support.
+# -------------------------------
+# REPOSITORY MANAGEMENT
+# -------------------------------
+# Functions to manage repositories and templates.
+# Clones a Git repository into a target directory with optional commit and branch support.
 clone_git_repo() {
     # Disable debug mode temporarily to avoid unnecessary log clutter.
     set +x
@@ -291,8 +292,114 @@ update_template() {
 }
 
 # -------------------------------
-# Logging and Debugging
+# SERVICE MANAGEMENT
 # -------------------------------
+# Functions to manage services in the container.
+# Loads default configurations and functions for a service based on the specified mode and context.
+prepare_service() {
+    # Validate if a parameter is provided
+    if [ -n "$1" ]; then
+        case "$(dirname "$0")" in
+            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                # Load defaults and functions in the init directory context
+                set -a
+                get_defaults "$1"
+                get_functions "$1"
+                set +a
+                ;;
+            *)
+                # Handle different modes for loading defaults and functions
+                case "${1,,}" in
+                    "BOTH" | "both" | "ALL" | "all")
+                        get_defaults "$2"
+                        get_functions "$2"
+                        ;;
+                    "DEFAULTS" | "defaults")
+                        get_defaults "$2"
+                        ;;
+                    "FUNCTIONS" | "functions")
+                        get_functions "$2"
+                        ;;
+                    *)
+                        print_error "[prepare_service] Invalid mode: '$1'"
+                        return 1
+                        ;;
+                esac
+                ;;
+        esac
+    else
+        # Default behavior if no parameter is provided
+        case "$(dirname "$0")" in
+            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
+                set -a
+                get_defaults
+                get_functions
+                set +a
+                ;;
+            *)
+                get_defaults
+                ;;
+        esac
+    fi
+}
+
+# Enables a specified service by creating a symbolic link in /etc/services.d.
+service_start() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[service_start] Service name is required."
+        return 1
+    fi
+
+    local service_name="$1"
+    local available_service_path="/etc/services.available/${service_name}"
+    local enabled_service_path="/etc/services.d/${service_name}"
+
+    # Check if the service exists in available services
+    if [ ! -e "$available_service_path" ]; then
+        print_error "[service_start] Service '${service_name}' does not exist in /etc/services.available."
+        return 1
+    fi
+
+    # Create symbolic link to enable the service
+    ln -sf "$available_service_path" "$enabled_service_path"
+
+    # Verify if the symbolic link was successfully created
+    if [ -L "$enabled_service_path" ]; then
+        print_info "[service_start] Service '${service_name}' successfully started."
+    else
+        print_error "[service_start] Failed to start service '${service_name}'."
+        return 1
+    fi
+}
+
+# Prevents a specified service from starting by marking it with a 'DONOTSTART' flag.
+service_stop() {
+    # Validate input arguments
+    if [ -z "$1" ]; then
+        print_error "[service_stop] Service name is required."
+        return 1
+    fi
+
+    local service_name="$1"
+    local service_flag_file="/tmp/.container/${service_name}-init"
+
+    # Add 'DONOTSTART' marker to prevent the service from starting
+    echo "DONOTSTART added by $(basename "$0")" >> "$service_flag_file"
+
+    # Verify if the flag was successfully added
+    if grep -q "DONOTSTART" "$service_flag_file"; then
+        print_info "[service_stop] Service '${service_name}' has been marked with 'DONOTSTART'."
+    else
+        print_error "[service_stop] Failed to mark service '${service_name}' with 'DONOTSTART'."
+        return 1
+    fi
+}
+
+# -------------------------------
+# LOGGING AND DEBUGGING
+# -------------------------------
+# Functions for logging and debugging outputs.
 # Generates a formatted log prefix with date and time.
 log_prefix() {
     # Disable output to prevent unwanted logs during prefix generation
@@ -573,58 +680,64 @@ print_warn() {
     output_on
 }
 
-# Creates a logrotate configuration file for a specified log file with optional settings.
-create_logrotate() {
-    # Validate required arguments
-    if [ -z "$1" ] || [ -z "$2" ]; then
-        print_error "[create_logrotate] Logrotate name and log file path are required."
-        return 1
+# Temporarily disables debug output if DEBUG_MODE is enabled.
+output_off() {
+    # Check if DEBUG_MODE is set to true (case-insensitive).
+    if [[ "${DEBUG_MODE,,}" == "true" ]]; then
+        set +x
     fi
-
-    local config_name="$1"
-    local log_path="$2"
-    local logship_parser=""
-    local user_config=""
-
-    # Check if logrotate configuration already exists
-    if [ -f "/assets/logrotate/${config_name}" ]; then
-        print_debug "[create_logrotate] Logrotate entry '${config_name}' already exists. Skipping creation."
-        return 0
-    fi
-
-    print_debug "[create_logrotate] Creating Logrotate Entry for '${log_path}'"
-
-    # Parse optional third argument for logship configuration
-    if [ -n "$3" ] && [ "${3,,}" != "none" ]; then
-        logship_parser="# logship: $3"
-    fi
-
-    # Parse optional user and group for 'su' directive
-    if [ -n "$4" ] && [ -n "$5" ]; then
-        user_config="    su $4 $5"
-    fi
-
-    # Ensure the logrotate directory exists
-    mkdir -p /assets/logrotate
-
-    # Create logrotate configuration file
-    cat <<EOF > "/assets/logrotate/${config_name}"
-${logship_parser}
-${log_path} {
-    missingok
-${user_config}
 }
-EOF
 
-    # Set appropriate file permissions
-    chown root:root "/assets/logrotate/${config_name}"
-    chmod 0644 "/assets/logrotate/${config_name}"
+# Enables debug output if DEBUG_MODE is enabled and conditions are met.
+output_on() {
+    # Check if DEBUG_MODE is enabled (case-insensitive).
+    if [[ "${DEBUG_MODE,,}" == "true" ]]; then
+        local script_name
+        local current_dir
 
-    print_info "[create_logrotate] Logrotate entry '${config_name}' created successfully."
+        script_name="$(basename "$0")"
+        current_dir="$PWD"
+
+        # Check script name patterns and directory conditions.
+        case "${script_name}" in
+            0*-* | 99-*)
+                # Skip enabling debug for initialization or special scripts.
+                :
+                ;;
+            run)
+                case "${current_dir}" in
+                    */0*-* | */99-*)
+                        # Skip enabling debug for specific directories.
+                        :
+                        ;;
+                    *)
+                        # Enable debug mode for other 'run' scripts.
+                        set -x
+                        ;;
+                esac
+                ;;
+            *)
+                # Enable debug mode for all other scripts.
+                set -x
+                ;;
+        esac
+    fi
+}
+
+# Executes a command silently unless DEBUG_MODE, SHOW_OUTPUT, or CONTAINER_LOG_LEVEL are enabled for logging.
+silent() {
+    # Check if debug or verbose output is enabled.
+    if [[ "${DEBUG_MODE,,}" == "true" ]] || [[ "${SHOW_OUTPUT,,}" == "true" ]] || [[ "${CONTAINER_LOG_LEVEL,,}" == "debug" ]]; then
+        # Run command with standard output.
+        "$@"
+    else
+        # Run command silently, suppressing both stdout and stderr.
+        "$@" > /dev/null 2>&1
+    fi
 }
 
 # -------------------------------
-# Utility Functions
+# UTILITY FUNCTIONS
 # -------------------------------
 # General utility functions for container management.
 # Check if a specific database type is ready for connection
@@ -983,6 +1096,81 @@ get_functions() {
     fi
 }
 
+# Retrieves the image version from changelog files based on IMAGE_NAME or IMAGE_REPO_URL.
+get_image_version() {
+    # Temporarily disable output to prevent unnecessary logging
+    output_off
+
+    # Validate if IMAGE_NAME is set
+    if [ -n "${IMAGE_NAME}" ]; then
+        local image_version=""
+        local changelog_paths=(
+            "/assets/.changelogs/${IMAGE_NAME/\//_}.md"
+            "/assets/.changelogs/docker-${IMAGE_NAME/\//_}.md"
+            "/assets/.changelogs/focela_docker-${IMAGE_NAME/\//_}.md"
+        )
+
+        # Iterate over possible changelog paths to find the version
+        for changelog in "${changelog_paths[@]}"; do
+            if [ -f "${changelog}" ]; then
+                image_version=$(head -n1 "${changelog}" | awk '{print $2}')
+                break
+            fi
+        done
+
+        # If no version is found, attempt to retrieve from IMAGE_REPO_URL
+        if [ -z "${image_version}" ] && [ -n "${IMAGE_REPO_URL}" ]; then
+            local repo_changelog_path
+            repo_changelog_path=$(echo "${IMAGE_REPO_URL%/}" | sed "s#https://github.com/##g")
+            local repo_changelog="/assets/.changelogs/${repo_changelog_path/\//_}.md"
+
+            if [ -f "${repo_changelog}" ]; then
+                image_version=$(head -n1 "${repo_changelog}" | awk '{print $2}')
+            fi
+        fi
+
+        # Print the image version if retrieved
+        if [ -n "${image_version}" ]; then
+            echo "${image_version}"
+        fi
+    fi
+
+    # Re-enable output
+    output_on
+}
+
+# Converts environment variables ending with '_FILE' into their content values if they point to valid files.
+transform_file_var() {
+    # Extract and iterate through all provided variables
+    local variables
+    variables=$(echo "$@" | tr " " "\n")
+
+    for variable in $variables; do
+        local file_variable="${variable}_FILE"
+
+        # Check if a corresponding *_FILE variable exists
+        if [ -v "${file_variable}" ]; then
+            # Validate if the file exists
+            if [ ! -f "${!file_variable}" ]; then
+                print_error "[transform_file_var] ${file_variable} is set, but the file does not exist."
+                return 1
+            fi
+
+            # Replace variable value with file content
+            export "${variable}"="$(cat "${!file_variable}")"
+            print_debug "[transform_file_var] Transformed '${variable}' from file '${!file_variable}'"
+        fi
+    done
+
+    # Clean up temporary variables
+    unset file_variable
+    unset variables
+}
+
+# -------------------------------
+# SYSTEM CONFIGURATION
+# -------------------------------
+# Functions for managing system-level configurations.
 # Grants 'doas' privileges to a specified user for specific commands.
 grant_doas() {
     # Temporarily disable output to prevent unwanted logs
@@ -1119,32 +1307,54 @@ host_override() {
     done
 }
 
-# Converts environment variables ending with '_FILE' into their content values if they point to valid files.
-transform_file_var() {
-    # Extract and iterate through all provided variables
-    local variables
-    variables=$(echo "$@" | tr " " "\n")
+# Creates a logrotate configuration file for a specified log file with optional settings.
+create_logrotate() {
+    # Validate required arguments
+    if [ -z "$1" ] || [ -z "$2" ]; then
+        print_error "[create_logrotate] Logrotate name and log file path are required."
+        return 1
+    fi
 
-    for variable in $variables; do
-        local file_variable="${variable}_FILE"
+    local config_name="$1"
+    local log_path="$2"
+    local logship_parser=""
+    local user_config=""
 
-        # Check if a corresponding *_FILE variable exists
-        if [ -v "${file_variable}" ]; then
-            # Validate if the file exists
-            if [ ! -f "${!file_variable}" ]; then
-                print_error "[transform_file_var] ${file_variable} is set, but the file does not exist."
-                return 1
-            fi
+    # Check if logrotate configuration already exists
+    if [ -f "/assets/logrotate/${config_name}" ]; then
+        print_debug "[create_logrotate] Logrotate entry '${config_name}' already exists. Skipping creation."
+        return 0
+    fi
 
-            # Replace variable value with file content
-            export "${variable}"="$(cat "${!file_variable}")"
-            print_debug "[transform_file_var] Transformed '${variable}' from file '${!file_variable}'"
-        fi
-    done
+    print_debug "[create_logrotate] Creating Logrotate Entry for '${log_path}'"
 
-    # Clean up temporary variables
-    unset file_variable
-    unset variables
+    # Parse optional third argument for logship configuration
+    if [ -n "$3" ] && [ "${3,,}" != "none" ]; then
+        logship_parser="# logship: $3"
+    fi
+
+    # Parse optional user and group for 'su' directive
+    if [ -n "$4" ] && [ -n "$5" ]; then
+        user_config="    su $4 $5"
+    fi
+
+    # Ensure the logrotate directory exists
+    mkdir -p /assets/logrotate
+
+    # Create logrotate configuration file
+    cat <<EOF > "/assets/logrotate/${config_name}"
+${logship_parser}
+${log_path} {
+    missingok
+${user_config}
+}
+EOF
+
+    # Set appropriate file permissions
+    chown root:root "/assets/logrotate/${config_name}"
+    chmod 0644 "/assets/logrotate/${config_name}"
+
+    print_info "[create_logrotate] Logrotate entry '${config_name}' created successfully."
 }
 
 # Creates a Zabbix configuration file for a specific service with optional autoregister settings.
@@ -1186,6 +1396,48 @@ EOF
     fi
 }
 
+# -------------------------------
+# CUSTOM ACTIONS
+# -------------------------------
+# Functions to handle custom scripts and file operations.
+# Copies custom files from a source directory to a destination directory, optionally setting ownership.
+custom_files() {
+    # Validate and set source and destination directories.
+    local source_path="${1:-${CONTAINER_CUSTOM_PATH}}"
+    local destination_path="${2}"
+    local owner=""
+
+    # If destination path is not provided, set it based on input.
+    if [[ -z "${destination_path}" ]]; then
+        destination_path="${1}"
+        source_path="${CONTAINER_CUSTOM_PATH}"
+    fi
+
+    # Check if the source directory exists and is not empty.
+    if [[ -d "${source_path}" ]] && dir_notempty "${source_path}"; then
+        print_debug "Custom Files: Copying files from '${source_path}' to '${destination_path}'"
+
+        # Ensure the destination directory exists.
+        mkdir -p "${destination_path}"
+
+        # Copy files from source to destination.
+        cp -aR "${source_path}/" "${destination_path}/"
+    else
+        print_warn "Custom Files: Source directory '${source_path}' is empty or does not exist."
+    fi
+
+    # Set ownership if user and/or group are provided.
+    if [[ -n "${3}" && -z "${4}" ]]; then
+        owner="${3}"
+    elif [[ -n "${3}" && -n "${4}" ]]; then
+        owner="${3}:${4}"
+    fi
+
+    if [[ -n "${owner}" ]]; then
+        chown -R "${owner}" "${destination_path}"
+    fi
+}
+
 # Runs executable custom scripts from a given or default directory.
 custom_scripts() {
     # Define the source directory for custom scripts
@@ -1207,158 +1459,155 @@ custom_scripts() {
     fi
 }
 
-# Retrieves the image version from changelog files based on IMAGE_NAME or IMAGE_REPO_URL.
-get_image_version() {
-    # Temporarily disable output to prevent unnecessary logging
+# -------------------------------
+# SANITY CHECKS
+# -------------------------------
+# Functions to validate environment variables and database readiness.
+# Validates database configuration based on the specified database type.
+sanity_db() {
     output_off
 
-    # Validate if IMAGE_NAME is set
-    if [ -n "${IMAGE_NAME}" ]; then
-        local image_version=""
-        local changelog_paths=(
-            "/assets/.changelogs/${IMAGE_NAME/\//_}.md"
-            "/assets/.changelogs/docker-${IMAGE_NAME/\//_}.md"
-            "/assets/.changelogs/focela_docker-${IMAGE_NAME/\//_}.md"
-        )
-
-        # Iterate over possible changelog paths to find the version
-        for changelog in "${changelog_paths[@]}"; do
-            if [ -f "${changelog}" ]; then
-                image_version=$(head -n1 "${changelog}" | awk '{print $2}')
-                break
-            fi
-        done
-
-        # If no version is found, attempt to retrieve from IMAGE_REPO_URL
-        if [ -z "${image_version}" ] && [ -n "${IMAGE_REPO_URL}" ]; then
-            local repo_changelog_path
-            repo_changelog_path=$(echo "${IMAGE_REPO_URL%/}" | sed "s#https://github.com/##g")
-            local repo_changelog="/assets/.changelogs/${repo_changelog_path/\//_}.md"
-
-            if [ -f "${repo_changelog}" ]; then
-                image_version=$(head -n1 "${repo_changelog}" | awk '{print $2}')
-            fi
-        fi
-
-        # Print the image version if retrieved
-        if [ -n "${image_version}" ]; then
-            echo "${image_version}"
-        fi
+    # Validate database type argument
+    if [[ -z "$1" ]]; then
+        print_debug "Using legacy db_ready command - please upgrade"
+        legacy_db_check
+        output_on
+        return
     fi
 
-    # Re-enable output
+    local db_type="${1,,}"
+    local db_host=""
+    local db_user=""
+    local db_pass=""
+    local db_name=""
+    local db_vars=()
+
+    # Common transformation logic
+    transform_db_vars() {
+        for var in "$@"; do
+            transform_file_var "${var}"
+            if [[ -n "${!var}" ]]; then
+                echo "${!var}"
+                return
+            fi
+        done
+    }
+
+    # Process database configuration based on type
+    print_debug "Checking ${db_type} Database Parameters"
+    case "${db_type}" in
+        "couch" | "couchdb")
+            db_host=$(transform_db_vars DB_HOST COUCH_HOST)
+            [[ -z "${db_host}" ]] && print_error "No CouchDB Host Entered! - Set '\$DB_HOST' or '\$COUCH_HOST'" && exit 1
+            ;;
+
+        "influx" | "influxdb")
+            db_host=$(transform_db_vars DB_HOST INFLUX_HOST)
+            [[ -z "${db_host}" ]] && print_error "No InfluxDB Host Entered! - Set '\$DB_HOST' or '\$INFLUX_HOST'" && exit 1
+            ;;
+
+        "mongo" | "mongodb")
+            db_host=$(transform_db_vars DB_HOST MONGO_HOST)
+            [[ -z "${db_host}" ]] && print_error "No MongoDB Host Entered! - Set '\$DB_HOST' or '\$MONGO_HOST'" && exit 1
+            ;;
+
+        "mysql" | "mariadb")
+            db_host=$(transform_db_vars DB_HOST MYSQL_HOST MARIA_HOST)
+            db_user=$(transform_db_vars DB_USER MYSQL_USER MARIA_USER)
+            db_pass=$(transform_db_vars DB_PASS MYSQL_PASS MARIA_PASS)
+            db_name=$(transform_db_vars DB_NAME MYSQL_NAME MARIA_NAME)
+
+            [[ -z "${db_host}" ]] && print_error "No MariaDB Host Entered!" && exit 1
+            [[ -z "${db_name}" ]] && print_error "No MariaDB Name Entered!" && exit 1
+            [[ -z "${db_user}" ]] && print_error "No MariaDB User Entered!" && exit 1
+            [[ -z "${db_pass}" ]] && print_error "No MariaDB Password Entered!" && exit 1
+            ;;
+
+        "pgsql" | "psql" | "postgres" | "postgresql")
+            db_host=$(transform_db_vars DB_HOST POSTGRES_HOST)
+            db_user=$(transform_db_vars DB_USER POSTGRES_USER)
+            db_pass=$(transform_db_vars DB_PASS PGPASSWORD)
+            db_name=$(transform_db_vars DB_NAME POSTGRES_NAME)
+
+            [[ -z "${db_host}" ]] && print_error "No PostgreSQL Host Entered!" && exit 1
+            [[ -z "${db_name}" ]] && print_error "No PostgreSQL Name Entered!" && exit 1
+            [[ -z "${db_user}" ]] && print_error "No PostgreSQL User Entered!" && exit 1
+            [[ -z "${db_pass}" ]] && print_error "No PostgreSQL Password Entered!" && exit 1
+            ;;
+
+        "rabbit" | "rabbitmq")
+            db_host=$(transform_db_vars DB_HOST RABBIT_HOST RABBITMQ_HOST)
+            [[ -z "${db_host}" ]] && print_error "No RabbitMQ Host Entered!" && exit 1
+            ;;
+
+        "redis")
+            db_host=$(transform_db_vars DB_HOST REDIS_HOST)
+            [[ -z "${db_host}" ]] && print_error "No Redis Host Entered!" && exit 1
+            ;;
+
+        "rethink")
+            db_host=$(transform_db_vars DB_HOST RETHINK_HOST)
+            [[ -z "${db_host}" ]] && print_error "No RethinkDB Host Entered!" && exit 1
+            ;;
+
+        *)
+            print_error "Unsupported database type: ${db_type}"
+            exit 1
+            ;;
+    esac
+
+    print_info "${db_type^} Database parameters validated successfully."
+    output_on
+}
+
+# Legacy Database Check (for backward compatibility)
+legacy_db_check() {
+    db_host=$(transform_db_vars DB_HOST)
+    db_name=$(transform_db_vars DB_NAME)
+    db_user=$(transform_db_vars DB_USER)
+    db_pass=$(transform_db_vars DB_PASS)
+
+    [[ -z "${db_host}" ]] && print_error "No Database Host Entered!" && exit 1
+    [[ -z "${db_name}" ]] && print_error "No Database Name Entered!" && exit 1
+    [[ -z "${db_user}" ]] && print_error "No Database User Entered!" && exit 1
+    [[ -z "${db_pass}" ]] && print_error "No Database Password Entered!" && exit 1
+}
+
+# Validates a required environment variable, logs an error, and exits if it's missing or empty.
+sanity_var() {
+    # Disable debug output to avoid unnecessary log clutter.
+    output_off
+
+    # Validate if the variable name is provided as the first argument.
+    if [ -z "$1" ]; then
+        print_error "[sanity_var] Missing environment variable name as argument."
+        output_on
+        exit 1
+    fi
+
+    # Assign variable name and optional description.
+    local var_name="$1"
+    local var_description="${2:-$1}" # Use var_name as description if not provided.
+
+    # Check if the environment variable is set and non-empty.
+    print_debug "[sanity_var] Validating environment variable: '${var_name}'"
+    if [ -z "${!var_name}" ]; then
+        print_error "[sanity_var] No '${var_description}' provided! Set '\$$var_name'."
+        output_on
+        exit 1
+    fi
+
+    # Log success if the variable exists and is non-empty.
+    print_info "[sanity_var] Environment variable '${var_name}' is set."
+
+    # Re-enable debug output.
     output_on
 }
 
 # -------------------------------
-# Service Management
+# WAITING FUNCTIONS
 # -------------------------------
-# FUNCTIONS TO MANAGE SERVICES IN THE CONTAINER.
-# Loads default configurations and functions for a service based on the specified mode and context.
-prepare_service() {
-    # Validate if a parameter is provided
-    if [ -n "$1" ]; then
-        case "$(dirname "$0")" in
-            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
-                # Load defaults and functions in the init directory context
-                set -a
-                get_defaults "$1"
-                get_functions "$1"
-                set +a
-                ;;
-            *)
-                # Handle different modes for loading defaults and functions
-                case "${1,,}" in
-                    "BOTH" | "both" | "ALL" | "all")
-                        get_defaults "$2"
-                        get_functions "$2"
-                        ;;
-                    "DEFAULTS" | "defaults")
-                        get_defaults "$2"
-                        ;;
-                    "FUNCTIONS" | "functions")
-                        get_functions "$2"
-                        ;;
-                    *)
-                        print_error "[prepare_service] Invalid mode: '$1'"
-                        return 1
-                        ;;
-                esac
-                ;;
-        esac
-    else
-        # Default behavior if no parameter is provided
-        case "$(dirname "$0")" in
-            "/var/run/s6/etc/cont-init.d" | "/etc/cont-init.d")
-                set -a
-                get_defaults
-                get_functions
-                set +a
-                ;;
-            *)
-                get_defaults
-                ;;
-        esac
-    fi
-}
-
-# Enables a specified service by creating a symbolic link in /etc/services.d.
-service_start() {
-    # Validate input arguments
-    if [ -z "$1" ]; then
-        print_error "[service_start] Service name is required."
-        return 1
-    fi
-
-    local service_name="$1"
-    local available_service_path="/etc/services.available/${service_name}"
-    local enabled_service_path="/etc/services.d/${service_name}"
-
-    # Check if the service exists in available services
-    if [ ! -e "$available_service_path" ]; then
-        print_error "[service_start] Service '${service_name}' does not exist in /etc/services.available."
-        return 1
-    fi
-
-    # Create symbolic link to enable the service
-    ln -sf "$available_service_path" "$enabled_service_path"
-
-    # Verify if the symbolic link was successfully created
-    if [ -L "$enabled_service_path" ]; then
-        print_info "[service_start] Service '${service_name}' successfully started."
-    else
-        print_error "[service_start] Failed to start service '${service_name}'."
-        return 1
-    fi
-}
-
-# Prevents a specified service from starting by marking it with a 'DONOTSTART' flag.
-service_stop() {
-    # Validate input arguments
-    if [ -z "$1" ]; then
-        print_error "[service_stop] Service name is required."
-        return 1
-    fi
-
-    local service_name="$1"
-    local service_flag_file="/tmp/.container/${service_name}-init"
-
-    # Add 'DONOTSTART' marker to prevent the service from starting
-    echo "DONOTSTART added by $(basename "$0")" >> "$service_flag_file"
-
-    # Verify if the flag was successfully added
-    if grep -q "DONOTSTART" "$service_flag_file"; then
-        print_info "[service_stop] Service '${service_name}' has been marked with 'DONOTSTART'."
-    else
-        print_error "[service_stop] Failed to mark service '${service_name}' with 'DONOTSTART'."
-        return 1
-    fi
-}
-
-# -------------------------------
-# Service Management
-# -------------------------------
-# FUNCTIONS TO MANAGE SERVICES IN THE CONTAINER.
+# Functions to wait for resources to become available.
 # Waits until a specified directory exists before proceeding.
 wait_for_directory() {
     # Validate input arguments
@@ -1467,165 +1716,269 @@ wait_for_socket() {
 }
 
 # -------------------------------
-# Package Management
+# BOOLEAN HELPERS
 # -------------------------------
-# FUNCTIONS TO MANAGE PACKAGES.
-# Manages package operations (install, remove, update, upgrade, cleanup) across Alpine, Debian, and Ubuntu systems.
-package() {
-    # Cleanup function to remove cache and temporary files.
-    cleanup() {
-        case "${distro}" in
-            "alpine")
-                rm -rf /root/.gitconfig
-                rm -rf /var/cache/apk/*
-                ;;
-            "debian" | "ubuntu")
-                apt-get clean -y
-                rm -rf /root/.gitconfig
-                rm -rf /var/lib/apt/lists/*
-                ;;
-            *)
-                print_error "[package:cleanup] Unsupported distribution: '${distro}'"
-                return 1
-                ;;
-        esac
-    }
+# Functions to handle boolean values in different formats.
+# Converts a boolean-like variable value ('true', 'false', 'yes', 'no') to 'yes' or 'no' with optional case formatting.
+truefalse_yesno() {
+    # Retrieve the value and variable name from the environment.
+    local value var
+    value=$(set | grep "^${1}=" | cut -d '=' -f2)
+    var=$(set | grep "^${1}=" | sed "s/=.*//g")
 
-    # Install function to add packages.
-    install() {
-        local dependencies=""
-        case "${distro}" in
-            "alpine")
-                if [[ "${1}" =~ ^\..* ]]; then
-                    dependencies="-t"
-                fi
-                apk add ${dependencies} "$@"
-                ;;
-            "debian" | "ubuntu")
-                if [[ "${1}" =~ ^\..* ]]; then
-                    shift
-                fi
-                apt-get install -y --no-install-recommends "$@"
-                ;;
-            *)
-                print_error "[package:install] Unsupported distribution: '${distro}'"
-                return 1
-                ;;
-        esac
-    }
-
-    # Remove function to uninstall packages.
-    remove() {
-        case "${distro}" in
-            "alpine")
-                apk del "$@"
-                ;;
-            "debian" | "ubuntu")
-                local packages="$@"
-                if [[ "${packages}" =~ \..* ]]; then
-                    packages=$(echo "${packages}" | sed "s|\..* ||g")
-                fi
-                apt-get purge -y ${packages}
-                apt-get autoremove -y
-                ;;
-            *)
-                print_error "[package:remove] Unsupported distribution: '${distro}'"
-                return 1
-                ;;
-        esac
-    }
-
-    # Update function to refresh package lists.
-    update() {
-        case "${distro}" in
-            "alpine")
-                apk update
-                ;;
-            "debian" | "ubuntu")
-                apt-get update
-                ;;
-            *)
-                print_error "[package:update] Unsupported distribution: '${distro}'"
-                return 1
-                ;;
-        esac
-    }
-
-    # Upgrade function to update installed packages.
-    upgrade() {
-        case "${distro}" in
-            "alpine")
-                apk upgrade
-                ;;
-            "debian" | "ubuntu")
-                apt-get upgrade -y
-                ;;
-            *)
-                print_error "[package:upgrade] Unsupported distribution: '${distro}'"
-                return 1
-                ;;
-        esac
-    }
-
-    # Main execution flow.
-    output_off
-
-    local distro
-    distro=$(grep ^ID= /etc/os-release | cut -d = -f2)
-    local action="${1}"
-    shift
-    local arguments=("$@")
-
-    if [ -z "${distro}" ]; then
-        print_error "[package] Unable to determine distribution."
-        output_on
+    # Validate if the variable exists.
+    if [ -z "${var}" ]; then
+        print_error "Variable '${1}' not found."
         return 1
     fi
 
-    case "${action}" in
-        add | install)
-            install "${arguments[@]}"
-            ;;
-        delete | remove | uninstall)
-            remove "${arguments[@]}"
-            ;;
-        cleanup | update | upgrade)
-            "${action}"
-            ;;
-        *)
-            print_error "[package] Unsupported action: '${action}'"
-            output_on
-            return 1
-            ;;
-    esac
+    # Convert 'true' or 'yes' to 'yes'
+    if [[ "${value,,}" == "true" || "${value,,}" == "yes" ]]; then
+        print_debug "Converting variable '${var}' value to 'yes'"
+        unset "${1}"
+        case "${2,,}" in
+            "uppercase" | "upper" | "uc")
+                export "${1}=YES"
+                ;;
+            "lowercase" | "lower" | "lc")
+                export "${1}=yes"
+                ;;
+            *)
+                export "${1}=yes"
+                ;;
+        esac
 
-    output_on
+    # Convert 'false' or 'no' to 'no'
+    elif [[ "${value,,}" == "false" || "${value,,}" == "no" ]]; then
+        print_debug "Converting variable '${var}' value to 'no'"
+        unset "${1}"
+        case "${2,,}" in
+            "uppercase" | "upper" | "uc")
+                export "${1}=NO"
+                ;;
+            "lowercase" | "lower" | "lc")
+                export "${1}=no"
+                ;;
+            *)
+                export "${1}=no"
+                ;;
+        esac
+    else
+        print_warn "Variable '${var}' does not have a recognized boolean value."
+    fi
 }
 
-# Toggles debug mode based on DEBUG_MODE, supporting various valid values.
+# Converts a boolean-like variable value ('true', 'false', 'yes', 'no') to 'ON' or 'OFF' with optional case formatting.
+truefalse_onoff() {
+    # Validate if the variable exists
+    local value var
+    value=$(set | grep "^${1}=" | cut -d '=' -f2)
+    var=$(set | grep "^${1}=" | sed "s/=.*//g")
+
+    if [ -z "${var}" ]; then
+        print_error "Variable '${1}' not found."
+        return 1
+    fi
+
+    # Handle 'true' and 'yes' values
+    if [[ "${value,,}" == "true" || "${value,,}" == "yes" ]]; then
+        print_debug "Converting variable '${var}' value to 'ON'"
+        unset "${1}"
+        case "${2,,}" in
+            "uppercase" | "upper" | "uc")
+                export "${1}=ON"
+                ;;
+            "lowercase" | "lower" | "lc")
+                export "${1}=on"
+                ;;
+            *)
+                export "${1}=ON"
+                ;;
+        esac
+
+    # Handle 'false' and 'no' values
+    elif [[ "${value,,}" == "false" || "${value,,}" == "no" ]]; then
+        print_debug "Converting variable '${var}' value to 'OFF'"
+        unset "${1}"
+        case "${2,,}" in
+            "uppercase" | "upper" | "uc")
+                export "${1}=OFF"
+                ;;
+            "lowercase" | "lower" | "lc")
+                export "${1}=off"
+                ;;
+            *)
+                export "${1}=OFF"
+                ;;
+        esac
+
+    # Handle unrecognized values
+    else
+        print_warn "Variable '${var}' does not have a recognized boolean value."
+    fi
+}
+
+# Converts a boolean-like variable value ('true', 'false', 'yes', 'no') to '1' or '0'.
+truefalse_onezero() {
+    # Validate if the variable exists
+    local value var
+    value=$(set | grep "^${1}=" | cut -d '=' -f2)
+    var=$(set | grep "^${1}=" | sed "s/=.*//g")
+
+    if [ -z "${var}" ]; then
+        print_error "Variable '${1}' not found."
+        return 1
+    fi
+
+    # Handle 'true' and 'yes' values
+    if [[ "${value,,}" == "true" || "${value,,}" == "yes" ]]; then
+        print_debug "Converting variable '${var}' value to '1'"
+        unset "${1}"
+        export "${1}=1"
+
+    # Handle 'false' and 'no' values
+    elif [[ "${value,,}" == "false" || "${value,,}" == "no" ]]; then
+        print_debug "Converting variable '${var}' value to '0'"
+        unset "${1}"
+        export "${1}=0"
+
+    # Handle unrecognized values
+    else
+        print_warn "Variable '${var}' does not have a recognized boolean value."
+        return 1
+    fi
+}
+
+# Converts boolean-like variable values ('yes', 'no', 'true', 'false') to 'TRUE'/'FALSE' or 'true'/'false'.
+yesno_truefalse() {
+    local value var format
+
+    # Validate if the variable exists
+    value=$(set | grep "^${1}=" | cut -d '=' -f2)
+    var=$(set | grep "^${1}=" | sed "s/=.*//g")
+
+    if [ -z "${var}" ]; then
+        print_error "Variable '${1}' not found."
+        return 1
+    fi
+
+    # Handle 'true' or 'yes' values
+    if [[ "${value,,}" == "true" || "${value,,}" == "yes" ]]; then
+        print_debug "Converting variable '${var}' value to 'TRUE'"
+        unset "${1}"
+        format="${2,,}"
+
+        case "${format}" in
+            "uppercase" | "upper" | "uc")
+                export "${1}=TRUE"
+                ;;
+            "lowercase" | "lower" | "lc")
+                export "${1}=true"
+                ;;
+            *)
+                export "${1}=TRUE"
+                ;;
+        esac
+
+    # Handle 'false' or 'no' values
+    elif [[ "${value,,}" == "false" || "${value,,}" == "no" ]]; then
+        print_debug "Converting variable '${var}' value to 'FALSE'"
+        unset "${1}"
+        format="${2,,}"
+
+        case "${format}" in
+            "uppercase" | "upper" | "uc")
+                export "${1}=FALSE"
+                ;;
+            "lowercase" | "lower" | "lc")
+                export "${1}=false"
+                ;;
+            *)
+                export "${1}=FALSE"
+                ;;
+        esac
+
+    # Handle unrecognized values
+    else
+        print_warn "Variable '${var}' does not have a recognized boolean value."
+        return 1
+    fi
+}
+
+# Checks if the given variable value is 'false' or 'no' (case-insensitive).
+var_false() {
+    local value="${1,,}"  # Convert the input value to lowercase
+
+    if [[ "${value}" == "false" || "${value}" == "no" ]]; then
+        return 0  # True (0) if the value matches 'false' or 'no'
+    else
+        return 1  # False (1) otherwise
+    fi
+}
+
+# Checks if the given variable value is not 'false' (case-insensitive).
+var_notfalse() {
+    local value="${1,,}"  # Convert the input value to lowercase
+
+    if [[ "${value}" != "false" ]]; then
+        return 0  # True (0) if the value is not 'false'
+    else
+        return 1  # False (1) if the value is 'false'
+    fi
+}
+
+# Checks if the given variable value is 'true' or 'yes' (case-insensitive).
+var_true() {
+    local value="${1,,}"  # Convert the input value to lowercase
+
+    if [[ "${value}" == "true" || "${value}" == "yes" ]]; then
+        return 0  # True (0) if the value is 'true' or 'yes'
+    else
+        return 1  # False (1) otherwise
+    fi
+}
+
+# Checks if the given variable value is not 'true' (case-insensitive).
+var_nottrue() {
+    local value="${1,,}"  # Convert the input value to lowercase
+
+    if [[ "${value}" != "true" ]]; then
+        return 0  # True (0) if the value is not 'true'
+    else
+        return 1  # False (1) if the value is 'true'
+    fi
+}
+
+# -------------------------------
+# Debug Mode Configuration
+# -------------------------------
+# Enables or disables debug mode based on the DEBUG_MODE variable.
 case "${DEBUG_MODE,,}" in
-    "true" | "yes" | "on")
+    "TRUE" | "true" | "YES" | "yes" | "ON" | "on")
         # Enable global debug mode
         CONTAINER_LOG_LEVEL="DEBUG"
         set -x
-        print_debug "Debug mode enabled globally."
         ;;
-    "false" | "no" | "off")
-        # Disable global debug mode
-        print_debug "Debug mode disabled globally."
+
+    "FALSE" | "false" | "NO" | "no" | "OFF" | "off")
+        # Disable debug mode explicitly (No action needed here)
+        :
         ;;
+
     *)
-        # Enable debug mode based on script directory
-        if [[ "$(dirname "$0")" == "/var/run/s6/etc/cont-init.d" || "$(dirname "$0")" == "/etc/cont-init.d" ]]; then
+        # Enable debug mode for specific scripts based on the directory
+        script_dir="$(dirname "$0")"
+
+        if [[ "${script_dir}" == "/var/run/s6/etc/cont-init.d" || "${script_dir}" == "/etc/cont-init.d" ]]; then
             if [[ "${DEBUG_MODE}" == "$(basename "$0")" ]]; then
-                print_notice "Enabling Debug mode for script: $(basename "$0")"
+                print_notice "Enabling Debug mode for $(basename "$0") scripts"
                 set -x
             fi
         fi
 
-        # Enable debug mode based on current working directory
+        # Enable debug mode for specific directories
         if [[ "${DEBUG_MODE}" == "$(basename "$PWD")" ]]; then
-            print_notice "Enabling Debug mode for directory: $(basename "$PWD")"
+            print_notice "Enabling Debug mode for $(basename "$PWD") scripts"
             set -x
         fi
         ;;
